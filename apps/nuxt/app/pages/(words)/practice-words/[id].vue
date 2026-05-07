@@ -1017,7 +1017,7 @@ useEvents([
         <div class="mb-50 w-full" v-else>
           <!--        前后单词-->
           <div
-            class="fixed z-1 top-4 w-full"
+            class="fixed z-1 top-4 w-full hidden md:block"
             style="left: calc(50vw + var(--aside-width) / 2 - var(--toolbar-width) / 2); width: var(--toolbar-width)"
             v-if="settingStore.showNearWord"
           >

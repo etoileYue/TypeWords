@@ -461,7 +461,7 @@ let mobileMenuOpen = $ref(false)
                 target="_blank"
                 >查看源码</a
               >
-              <NuxtImg src="/imgs/mini.png" alt="小程序二维码" class="hidden sm:block w-30 h-30 rounded-lg" />
+<!--              <NuxtImg src="/imgs/mini.png" alt="小程序二维码" class="hidden sm:block w-30 h-30 rounded-lg" />-->
             </div>
           </div>
           <!-- Right: 打字 Demo 卡片（PC 端可见） -->

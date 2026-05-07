@@ -161,7 +161,7 @@ onMounted(() => {
       <router-view></router-view>
 
       <div class="absolute right-4 top-4 flex z-1 gap-2" v-if="showIcon">
-        <MiniProgram v-if="settingStore.load && !settingStore.first" />
+<!--        <MiniProgram v-if="settingStore.load && !settingStore.first" />-->
 
         <div class="relative group">
           <BaseIcon>

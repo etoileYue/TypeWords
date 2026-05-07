@@ -51,32 +51,7 @@ defineProps<{
   height: calc(100vh - 1.8rem);
 }
 
-// 移动端适配
-@media (max-width: 768px) {
-  .wrap {
-    height: calc(100vh - 6rem);
-    width: 100vw;
-    padding: 0 1rem;
-    box-sizing: border-box;
-  }
-
-  .footer-hide {
-    .wrap {
-      height: calc(100vh - 2rem) !important;
-    }
-
-    .footer-wrap {
-      bottom: calc(-10rem + env(safe-area-inset-bottom, 0px));
-    }
-  }
-
-  .footer-wrap {
-    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
-    left: 0.5rem;
-    right: 0.5rem;
-    width: auto;
-  }
-
+@media (max-width: 1560px) {
   .panel-wrap {
     position: fixed;
     top: 0;
@@ -102,6 +77,33 @@ defineProps<{
   }
 }
 
+// 移动端适配
+@media (max-width: 768px) {
+  .wrap {
+    height: calc(100vh - 6rem);
+    width: 100vw;
+    padding: 0 1rem;
+    box-sizing: border-box;
+  }
+
+  .footer-hide {
+    .wrap {
+      height: calc(100vh - 2rem) !important;
+    }
+
+    .footer-wrap {
+      bottom: calc(-8rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
+  .footer-wrap {
+    bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+  }
+}
+
 // 超小屏幕适配
 @media (max-width: 480px) {
   .wrap {
@@ -112,6 +114,10 @@ defineProps<{
   .footer-hide {
     .wrap {
       height: calc(100vh - 1.5rem) !important;
+    }
+
+    .footer-wrap {
+      bottom: calc(-7rem + env(safe-area-inset-bottom, 0px));
     }
   }
 
