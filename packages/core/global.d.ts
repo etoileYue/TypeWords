@@ -20,6 +20,7 @@ declare global {
       input: string
       inputLock: boolean
       containsSpace: boolean
+      language?: string
     }
   }
 

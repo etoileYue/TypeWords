@@ -3,6 +3,8 @@ import { useSettingStore } from '../stores/setting'
 import { ref } from 'vue'
 
 import { ENV, PronunciationApi, SoundFileOptions } from '../config/env'
+import type { LanguageType, Word } from '../types'
+import { withAppBaseURL } from '../utils/base-url'
 
 /**
  * 获取当前浏览器的 OS+浏览器 组合 key，用于 ttsVoiceMap 的索引
@@ -132,13 +134,29 @@ export function usePlayCorrect() {
 export function usePlayWordAudio() {
   const settingStore = useSettingStore()
   let audio = ref<HTMLAudioElement>(null)
+  const ttsPlay = useTTsPlayAudio()
 
   onMounted(() => {
     audio.value = new Audio()
   })
 
-  function playAudio(word: string) {
+  function playAudio(value: string | Word) {
+    const word = typeof value === 'string' ? value : value.word
+    const language = typeof value === 'string' ? 'en' : value.language
+    const audioSrc = typeof value === 'string' ? '' : value.audioSrc
     if (!word) return
+    if (!audio.value) audio.value = new Audio()
+
+    const fallback = () => ttsPlay(word, language)
+    if (audioSrc) {
+      audio.value.src = withAppBaseURL(audioSrc)
+      audio.value.volume = settingStore.wordSoundVolume / 100
+      audio.value.playbackRate = settingStore.wordSoundSpeed
+      audio.value.onerror = fallback
+      audio.value.play().catch(fallback)
+      return
+    }
+
     let url = `${PronunciationApi}${word}&type=2`
     if (settingStore.soundType === 'uk') {
       url = `${PronunciationApi}${word}&type=1`
@@ -147,10 +165,43 @@ export function usePlayWordAudio() {
     audio.value.volume = settingStore.wordSoundVolume / 100
     audio.value.playbackRate = settingStore.wordSoundSpeed
     audio.value.play()
-    audio.value.onerror = e => {
-      const ttsPlay = useTTsPlayAudio()
-      ttsPlay(word)
+    audio.value.onerror = fallback
+  }
+
+  return playAudio
+}
+
+export function usePlayTextAudio() {
+  const settingStore = useSettingStore()
+  let audio = ref<HTMLAudioElement>(null)
+  const ttsPlay = useTTsPlayAudio()
+
+  onMounted(() => {
+    audio.value = new Audio()
+  })
+
+  function playAudio(value: { text: string; audioSrc?: string; language?: LanguageType }, onTtsFallback?: () => void) {
+    if (!value.text) return
+    if (!audio.value) audio.value = new Audio()
+
+    let didFallback = false
+    const fallback = () => {
+      if (didFallback) return
+      didFallback = true
+      onTtsFallback?.()
+      ttsPlay(value.text, value.language)
     }
+
+    if (value.audioSrc) {
+      audio.value.src = withAppBaseURL(value.audioSrc)
+      audio.value.volume = settingStore.wordSoundVolume / 100
+      audio.value.playbackRate = settingStore.wordSoundSpeed
+      audio.value.onerror = fallback
+      audio.value.play().catch(fallback)
+      return
+    }
+
+    fallback()
   }
 
   return playAudio
@@ -169,29 +220,32 @@ function getVoicesAsync() {
 export function useTTsPlayAudio() {
   const settingStore = useSettingStore()
 
-  function play(text: string) {
+  function play(text: string, language: LanguageType = 'en') {
     speechSynthesis.cancel() // 防止 Chrome 队列卡死
     let msg = new SpeechSynthesisUtterance(text)
     msg.rate = settingStore.wordSoundSpeed
     msg.volume = settingStore.wordSoundVolume / 100
     msg.pitch = 1
-    msg.lang = 'en-US'
+    msg.lang = language === 'ja' ? 'ja-JP' : 'en-US'
     getVoicesAsync().then((voices: any[]) => {
       // 优先使用用户在当前浏览器配置的声色
       const browserKey = getBrowserKey()
       const savedVoiceName = settingStore?.ttsVoiceMap?.find(v => v.key === browserKey)?.voice
       if (savedVoiceName) {
         const savedVoice = voices.find(v => v.name === savedVoiceName)
-        if (savedVoice) {
+        if (savedVoice && savedVoice.lang === msg.lang) {
           msg.voice = savedVoice
           speechSynthesis.speak(msg)
           return
         }
       }
-      // 回退：优先找 Emma / US，否则取第一个英文声色
-      let voiceList = voices.filter(v => v.lang === 'en-US')
+      // 回退：优先找目标语言声色
+      let voiceList = voices.filter(v => v.lang === msg.lang)
       if (voiceList && voiceList.length) {
-        msg.voice = voiceList.find(v => v.name.includes('US') || v.name.includes('Emma')) ?? voiceList[0]
+        msg.voice =
+          language === 'ja'
+            ? voiceList.find(v => v.lang === 'ja-JP') ?? voiceList[0]
+            : voiceList.find(v => v.name.includes('US') || v.name.includes('Emma')) ?? voiceList[0]
       }
       speechSynthesis.speak(msg)
     })

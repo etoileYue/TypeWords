@@ -44,7 +44,7 @@ const { isWordCollect, toggleWordCollect, isWordSimple, toggleWordSimple } = use
           <span class="text-sm translate-y-0.5 text-gray-500" v-if="index != undefined">{{ index }}.</span>
           <span class="word" :class="!showWord && 'word-shadow'">{{ item.word }}</span>
           <span class="phonetic text-gray" :class="!showWord && 'word-shadow'">{{ item.phonetic0 }}</span>
-          <VolumeIcon class="volume" @click="playWordAudio(item.word)"></VolumeIcon>
+          <VolumeIcon class="volume" @click="playWordAudio(item)"></VolumeIcon>
         </div>
         <TranslationList :pos-space="false" :word="item" :showFull="showWord" v-if="showTranslate" />
       </div>

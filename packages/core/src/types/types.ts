@@ -3,10 +3,16 @@ import type { Rating } from 'ts-fsrs'
 import { PRACTICE_ARTICLE_CACHE, PRACTICE_WORD_CACHE } from '../utils/cache'
 import { APP_VERSION } from '../config/env'
 
+export type TranslateLanguageType = 'en' | 'zh-CN' | 'ja' | 'de' | 'common' | ''
+export type LanguageType = 'en' | 'ja' | 'de' | 'code'
+
 export type Word = {
   id?: string
   custom?: boolean
   word: string
+  audioSrc?: string
+  language?: LanguageType
+  reading?: string
   phonetic0: string
   phonetic1: string
   trans: {
@@ -17,6 +23,8 @@ export type Word = {
   sentences: {
     c: string //content
     cn: string
+    reading?: string
+    audioSrc?: string
   }[]
   phrases: {
     c: string
@@ -42,9 +50,6 @@ export type Word = {
     d: string //desc
   }[]
 }
-
-export type TranslateLanguageType = 'en' | 'zh-CN' | 'ja' | 'de' | 'common' | ''
-export type LanguageType = 'en' | 'ja' | 'de' | 'code'
 
 export interface ArticleWord extends Word {
   nextSpace: boolean
