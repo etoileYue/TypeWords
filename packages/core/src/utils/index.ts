@@ -342,11 +342,14 @@ export async function sleep(time: number) {
 
 export async function _getDictDataByUrl(val: DictResource, type: DictType = DictType.word): Promise<Dict> {
   // await sleep(2000);
-  let dictResourceUrl = ENV.RESOURCE_URL + `dicts/${val.language}/word/${val.url}`
+  const isLocalPublicUrl = val.url?.startsWith('/')
+  const isDirectUrl = isLocalPublicUrl || /^https?:\/\//.test(val.url)
+  let dictResourceUrl = isDirectUrl ? val.url : ENV.RESOURCE_URL + `dicts/${val.language}/word/${val.url}`
   if (type === DictType.article) {
-    dictResourceUrl = ENV.RESOURCE_URL + `dicts/${val.language}/article/${val.url}`
+    dictResourceUrl = isDirectUrl ? val.url : ENV.RESOURCE_URL + `dicts/${val.language}/article/${val.url}`
   }
-  let s = await fetch(resourceWrap(dictResourceUrl, val.version)).then(r => r.json())
+  const requestUrl = isLocalPublicUrl ? withAppBaseURL(dictResourceUrl) : resourceWrap(dictResourceUrl, val.version)
+  let s = await fetch(requestUrl).then(r => r.json())
   if (s) {
     if (type === DictType.word) {
       return getDefaultDict({ ...val, words: s })
@@ -554,7 +557,7 @@ export async function loadJsLib(key: string, url: string) {
       script.onload = async () => {
         try {
           // 使用动态 import 加载模块
-          const module = await import(url) // 动态导入 .mjs 模块
+          const module = await import(/* @vite-ignore */ url) // 动态导入 .mjs 模块
           // @ts-ignore
           window[key] = module.default || module // 将模块挂到 window 对象
           // @ts-ignore

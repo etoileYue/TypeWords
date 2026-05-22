@@ -14,6 +14,7 @@ import { useFetch } from '@vueuse/core'
 import { DICT_LIST, LIB_JS_URL, TourConfig } from '@typewords/core/config/env.ts'
 import { BaseInput } from '@typewords/base'
 import { useSettingStore } from '@typewords/core/stores/setting.ts'
+import { withAppBaseURL } from '@typewords/core/utils/base-url'
 
 const { nav } = useNav()
 const runtimeStore = useRuntimeStore()
@@ -44,11 +45,18 @@ function groupByDictTags(dictList: DictResource[]) {
   }, {})
 }
 
-const { data: dict_list, isFetching } = useFetch(resourceWrap(DICT_LIST.WORD.ALL)).json()
+const { data: remoteDictList, isFetching: isRemoteFetching } = useFetch(resourceWrap(DICT_LIST.WORD.ALL)).json<
+  DictResource[]
+>()
+const { data: customDictList, isFetching: isCustomFetching } = useFetch(withAppBaseURL('/list/custom_word.json')).json<
+  DictResource[]
+>()
+const dict_list = computed<DictResource[]>(() => [...(remoteDictList.value ?? []), ...(customDictList.value ?? [])])
+const isFetching = computed(() => isRemoteFetching.value || isCustomFetching.value)
 
 const groupedByCategoryAndTag = $computed(() => {
   let data = []
-  if (!dict_list.value) return data
+  if (!dict_list.value.length) return data
   const groupByCategory = groupBy(dict_list.value, 'category')
   for (const [key, value] of Object.entries(groupByCategory)) {
     data.push([key, groupByDictTags(value)])
