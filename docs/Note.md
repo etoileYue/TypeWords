@@ -102,7 +102,3 @@ Food and talk
 1、开始“自测”练习单词列表（80个新词），同时进行“错词收集”，完成之后进入“错误练习检查流程”，如无则进入下一阶段
 2、开始“听写”练习单词列表（上个阶段的错词），同时进行“错词收集”，完成之后进入“错误练习检查流程”，如无则进入下一阶段
 3、开始“默写”练习单词列表（上上个阶段的错词），同时进行“错词收集”，完成之后进入“错误练习检查流程”，如无则进入下一阶段
-
-vscode 发布命令：vsce package
-openvsx:https://open-vsx.org/user-settings/extensions
-vscode:https://marketplace.visualstudio.com/manage/publishers/TypeWords

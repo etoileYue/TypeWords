@@ -3,7 +3,7 @@
  * 用法: node scripts/deploy-eo-pages.js --dir <dist目录> --name <EO项目名>
  * 示例:
  *   node scripts/deploy-eo-pages.js --dir dist --name type-words-deploy
- *   node scripts/deploy-eo-pages.js -d dist -n vscode-web-deploy
+ *   node scripts/deploy-eo-pages.js -d .output/public -n type-words-deploy
  *
  * 环境变量: EO_PAGES_TOKEN（必填）
  */
@@ -41,4 +41,3 @@ const child = spawn(cmd, [], { shell: true, stdio: 'inherit' })
 child.on('close', (code) => {
   process.exit(code ?? 0)
 })
-
