@@ -39,3 +39,5 @@ report.html
 !.env.example
 public/vscode
 apps/TypeWordsMiniApp
+
+parsed_output/
