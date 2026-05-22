@@ -20,6 +20,7 @@ import { IdentifyMethod, ShortcutKey, WordPracticeType } from '@typewords/core/t
 import { useI18n } from 'vue-i18n'
 import { useWordOptions } from '@typewords/core/hooks/dict.ts'
 import HoverReveal from '@/z-polyfill/HoverReveal.vue'
+import { getJapanesePracticeTarget } from '@typewords/core/utils/japanese.ts'
 
 const { t: $t } = useI18n()
 
@@ -67,12 +68,13 @@ const ttsPlayAudio = useTTsPlayAudio()
 const volumeIconRef: any = $ref()
 const sentenceVolumeIconsRefs: any = $ref([])
 const typingWordRef = $ref<HTMLDivElement>()
+let jaImeInputRef = $ref<HTMLInputElement>()
 // const volumeTranslateIconRef: any = $ref()
 
 let showAllCandidates = $ref(false)
 
 let displayWord = $computed(() => {
-  return props.word.word.slice(input.length + wrong.length)
+  return displayTarget.slice(input.length + wrong.length)
 })
 let displaySentence = $computed(() => {
   return props.word.sentences[currentPracticeSentenceIndex].c.slice(input.length + wrong.length)
@@ -92,13 +94,27 @@ let isWordTest = $computed(() => {
   )
 })
 
+let isJapaneseWord = $computed(() => props.word.language === 'ja' || store.sdict.language === 'ja')
+let isJapaneseRomajiInput = $computed(
+  () => isJapaneseWord && settingStore.japanesePracticeInputMode === 'romaji' && !isTypingSentence()
+)
+let isJapaneseImeInput = $computed(() => isJapaneseWord && settingStore.japanesePracticeInputMode !== 'romaji')
+let practiceTarget = $computed(() => {
+  if (isTypingSentence()) {
+    return props.word.sentences[currentPracticeSentenceIndex].c
+  }
+  return getJapanesePracticeTarget(props.word, settingStore.japanesePracticeInputMode, isJapaneseWord)
+})
+let displayTarget = $computed(() => practiceTarget)
+
 // 在全局对象中存储当前单词信息，以便其他模块可以访问
 function updateCurrentWordInfo() {
   window.__CURRENT_WORD_INFO__ = {
-    word: props.word.word,
+    word: practiceTarget,
     input: input,
     inputLock: inputLock,
-    containsSpace: props.word.word.includes(' '),
+    containsSpace: practiceTarget.includes(' '),
+    language: props.word.language || store.sdict.language,
   }
 }
 
@@ -120,6 +136,7 @@ function reset() {
   // 更新当前单词信息
   updateCurrentWordInfo()
   checkCursorPosition()
+  focusJaImeInput()
 }
 
 // 监听输入变化，更新当前单词信息
@@ -133,6 +150,7 @@ watch(
 onMounted(() => {
   // 初始化当前单词信息
   updateCurrentWordInfo()
+  focusJaImeInput()
 
   emitter.on(EventKey.resetWord, reset)
   emitter.on(EventKey.onTyping, onTyping)
@@ -150,6 +168,90 @@ function clearJumpTimer() {
   }
   clearTimeout(jumpTimer)
   jumpTimer = null
+}
+
+function focusJaImeInput() {
+  if (!isJapaneseImeInput) return
+  _nextTick(() => {
+    jaImeInputRef?.focus()
+  })
+}
+
+function createSyntheticKey(char: string): KeyboardEvent {
+  const keyCode = char === ' ' ? 32 : char.toUpperCase().charCodeAt(0)
+  return {
+    key: char,
+    code: char === ' ' ? 'Space' : '',
+    keyCode,
+    which: keyCode,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    metaKey: false,
+    repeat: false,
+    isComposing: false,
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  } as unknown as KeyboardEvent
+}
+
+function typeJaText(text: string) {
+  for (const char of text) {
+    onTyping(createSyntheticKey(char))
+  }
+}
+
+let isJaComposing = false
+let ignoreNextJaInput = false
+
+function onJaCompositionStart() {
+  isJaComposing = true
+  ignoreNextJaInput = false
+}
+
+function onJaCompositionEnd(e: CompositionEvent) {
+  isJaComposing = false
+  const target = e.target as HTMLInputElement
+  const text = e.data || target.value
+  target.value = ''
+  if (text) {
+    ignoreNextJaInput = true
+    window.setTimeout(() => (ignoreNextJaInput = false), 0)
+    typeJaText(text)
+  }
+}
+
+function onJaInput(e: InputEvent) {
+  if (isJaComposing) return
+  const target = e.target as HTMLInputElement
+  if (ignoreNextJaInput) {
+    ignoreNextJaInput = false
+    target.value = ''
+    return
+  }
+  const text = e.data || target.value
+  target.value = ''
+  if (text) typeJaText(text)
+}
+
+function onJaKeydown(e: KeyboardEvent) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.isComposing || e.keyCode === 229) {
+    e.stopPropagation()
+    return
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault()
+    e.stopPropagation()
+    del()
+    return
+  }
+  if (e.code === 'Space' && !isJaComposing && !jaImeInputRef?.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    onTyping(e)
+  }
 }
 
 function repeat() {
@@ -170,7 +272,7 @@ const right = $computed(() => {
   if (isTypingSentence()) {
     target = props.word.sentences[currentPracticeSentenceIndex].c
   } else {
-    target = props.word.word
+    target = practiceTarget
   }
   if (settingStore.ignoreCase) {
     return input.toLowerCase() === target.toLowerCase()
@@ -185,7 +287,7 @@ function know(e) {
   if (isSelfAssessment) {
     if (!showWordResult.value) {
       inputLock = showWordResult.value = true
-      input = props.word.word
+      input = practiceTarget
       emit('know')
       if (!showNotice) {
         Toast.info($t('know_word_tip'), { duration: 5000 })
@@ -225,11 +327,11 @@ function select(e, index: number) {
     completeSelect = true
     selectIndex = index
     if (index == props?.question?.correctIndex) {
-      input = props.word.word
+      input = practiceTarget
       playCorrect()
       emit('know')
     } else {
-      wrong = props.word.word
+      wrong = practiceTarget
       playBeep()
       play()
       emit('wrong')
@@ -265,7 +367,7 @@ async function onTyping(e: KeyboardEvent) {
     target = props.word.sentences[currentPracticeSentenceIndex].c
     targetVolumeIcon = sentenceVolumeIconsRefs[currentPracticeSentenceIndex]
   } else {
-    target = props.word.word
+    target = practiceTarget
     targetVolumeIcon = volumeIconRef
   }
   // 输入完成会锁死不能再输入
@@ -619,7 +721,21 @@ const isCollect = $computed(() => isWordCollect(props.word))
 </script>
 
 <template>
-  <div class="typing-word" ref="typingWordRef" v-if="word.word.length">
+  <div class="typing-word" ref="typingWordRef" v-if="word.word.length" @click="focusJaImeInput">
+    <input
+      v-if="isJapaneseImeInput"
+      ref="jaImeInputRef"
+      class="ja-ime-input"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-hidden="true"
+      @compositionstart="onJaCompositionStart"
+      @compositionend="onJaCompositionEnd"
+      @input="onJaInput"
+      @keydown="onJaKeydown"
+    />
     <div class="flex flex-col">
       <div class="flex gap-space items-end mb-2">
         <Tooltip
@@ -633,7 +749,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
                 class="letter w-full inline-block"
                 v-opacity="!settingStore.dictation || showWordResult || showFullWord"
               >
-                {{ word.word }}
+                {{ displayTarget }}
               </div>
               <div class="min-h-8 flex flex-col">
                 <div class="w-50 flex-1" :class="showWordResult ? (right ? 'right' : 'wrong') : ''">
@@ -696,10 +812,27 @@ const isCollect = $computed(() => isWordCollect(props.word))
               :title="`发音(${settingStore.shortcutKeyMap[ShortcutKey.PlayWordPronunciation]})`"
               ref="volumeIconRef"
               :simple="true"
-              :cb="() => playWordAudio(word.word)"
+              :cb="() => playWordAudio(word)"
             />
           </template>
         </HoverReveal>
+      </div>
+
+      <div class="ja-input-mode mb-2" v-if="isJapaneseWord && !isTypingSentence()">
+        <button
+          type="button"
+          :class="{ active: !isJapaneseRomajiInput }"
+          @click="settingStore.japanesePracticeInputMode = 'kanji'"
+        >
+          汉字输入
+        </button>
+        <button
+          type="button"
+          :class="{ active: isJapaneseRomajiInput }"
+          @click="settingStore.japanesePracticeInputMode = 'romaji'"
+        >
+          罗马音输入
+        </button>
       </div>
 
       <div class="mb-2 flex" v-if="settingStore.wordPracticeType === WordPracticeType.Identify && !showWordResult">
@@ -797,6 +930,16 @@ const isCollect = $computed(() => isWordCollect(props.word))
   word-break: break-word;
   position: relative;
 
+  .ja-ime-input {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .phonetic, {
     font-size: 1.1rem;
   }
@@ -804,6 +947,33 @@ const isCollect = $computed(() => isWordCollect(props.word))
   .phonetic {
     color: var(--color-font-1);
     font-family: var(--word-font-family);
+  }
+
+  .ja-input-mode {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--color-border, #37415155);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    line-height: 1;
+
+    button {
+      padding: 0.35rem 0.5rem;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--color-font-1);
+      cursor: pointer;
+      white-space: nowrap;
+
+      &.active {
+        color: var(--color-font-2);
+        background: var(--color-item-bg, rgba(127, 127, 127, 0.12));
+      }
+    }
   }
 
   .word {

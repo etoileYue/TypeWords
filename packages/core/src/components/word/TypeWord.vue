@@ -7,8 +7,8 @@ import {
   usePlayBeep,
   usePlayCorrect,
   usePlayKeyboardAudio,
+  usePlayTextAudio,
   usePlayWordAudio,
-  useTTsPlayAudio,
 } from '../../hooks/sound'
 import { emitter, EventKey, useEventsByWatch } from '../../utils/eventBus'
 import { onMounted, onUnmounted, watch } from 'vue'
@@ -21,6 +21,7 @@ import { useWordOptions } from '../../hooks/dict.ts'
 import { ref } from 'vue'
 import TranslationList from './TranslationList.vue'
 import { useRouter } from 'vue-router'
+import { getJapanesePracticeTarget } from '../../utils/japanese'
 
 const { t: $t } = useI18n()
 
@@ -65,11 +66,11 @@ const playBeep = usePlayBeep()
 const playCorrect = usePlayCorrect()
 const playKeyboardAudio = usePlayKeyboardAudio()
 const playWordAudio = usePlayWordAudio()
-const ttsPlayAudio = useTTsPlayAudio()
+const playTextAudio = usePlayTextAudio()
 
 // 例句发音未配置声色时的一次性引导提示（每次页面加载只提示一次）
 let ttsVoiceHintShown = false
-function playTtsWithGuide(text: string) {
+function showTtsGuide(text: string) {
   if (!ttsVoiceHintShown) {
     const browserKey = getBrowserKey()
     const hasVoice = settingStore.ttsVoiceMap?.some(v => v.key === browserKey && v.voice)
@@ -90,18 +91,18 @@ function playTtsWithGuide(text: string) {
       )
     }
   }
-  ttsPlayAudio(text)
 }
 
 const volumeIconRef: any = $ref()
 const sentenceVolumeIconsRefs: any = $ref([])
 const typingWordRef = $ref<HTMLDivElement>()
+let jaImeInputRef = $ref<HTMLInputElement>()
 // const volumeTranslateIconRef: any = $ref()
 
 let showAllCandidates = $ref(false)
 
 let displayWord = $computed(() => {
-  return props.word.word.slice(input.length + wrong.length)
+  return displayTarget.slice(input.length + wrong.length)
 })
 let displaySentence = $computed(() => {
   return props.word.sentences[currentPracticeSentenceIndex].c.slice(input.length + wrong.length)
@@ -121,13 +122,27 @@ let isWordTest = $computed(() => {
   )
 })
 
+let isJapaneseWord = $computed(() => props.word.language === 'ja' || store.sdict.language === 'ja')
+let isJapaneseRomajiInput = $computed(
+  () => isJapaneseWord && settingStore.japanesePracticeInputMode === 'romaji' && !isTypingSentence()
+)
+let isJapaneseImeInput = $computed(() => isJapaneseWord && settingStore.japanesePracticeInputMode !== 'romaji')
+let practiceTarget = $computed(() => {
+  if (isTypingSentence()) {
+    return props.word.sentences[currentPracticeSentenceIndex].c
+  }
+  return getJapanesePracticeTarget(props.word, settingStore.japanesePracticeInputMode, isJapaneseWord)
+})
+let displayTarget = $computed(() => practiceTarget)
+
 // 在全局对象中存储当前单词信息，以便其他模块可以访问
 function updateCurrentWordInfo() {
   window.__CURRENT_WORD_INFO__ = {
-    word: props.word.word,
+    word: practiceTarget,
     input: input,
     inputLock: inputLock,
-    containsSpace: props.word.word.includes(' '),
+    containsSpace: practiceTarget.includes(' '),
+    language: props.word.language || store.sdict.language,
   }
 }
 
@@ -149,6 +164,7 @@ function reset() {
   // 更新当前单词信息
   updateCurrentWordInfo()
   checkCursorPosition()
+  focusJaImeInput()
 }
 
 // 监听输入变化，更新当前单词信息
@@ -162,6 +178,7 @@ watch(
 onMounted(() => {
   // 初始化当前单词信息
   updateCurrentWordInfo()
+  focusJaImeInput()
 
   emitter.on(EventKey.resetWord, reset)
   emitter.on(EventKey.onTyping, onTyping)
@@ -179,6 +196,90 @@ function clearJumpTimer() {
   }
   clearTimeout(jumpTimer)
   jumpTimer = null
+}
+
+function focusJaImeInput() {
+  if (!isJapaneseImeInput) return
+  _nextTick(() => {
+    jaImeInputRef?.focus()
+  })
+}
+
+function createSyntheticKey(char: string): KeyboardEvent {
+  const keyCode = char === ' ' ? 32 : char.toUpperCase().charCodeAt(0)
+  return {
+    key: char,
+    code: char === ' ' ? 'Space' : '',
+    keyCode,
+    which: keyCode,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    metaKey: false,
+    repeat: false,
+    isComposing: false,
+    preventDefault() {},
+    stopPropagation() {},
+    stopImmediatePropagation() {},
+  } as unknown as KeyboardEvent
+}
+
+function typeJaText(text: string) {
+  for (const char of text) {
+    onTyping(createSyntheticKey(char))
+  }
+}
+
+let isJaComposing = false
+let ignoreNextJaInput = false
+
+function onJaCompositionStart() {
+  isJaComposing = true
+  ignoreNextJaInput = false
+}
+
+function onJaCompositionEnd(e: CompositionEvent) {
+  isJaComposing = false
+  const target = e.target as HTMLInputElement
+  const text = e.data || target.value
+  target.value = ''
+  if (text) {
+    ignoreNextJaInput = true
+    window.setTimeout(() => (ignoreNextJaInput = false), 0)
+    typeJaText(text)
+  }
+}
+
+function onJaInput(e: InputEvent) {
+  if (isJaComposing) return
+  const target = e.target as HTMLInputElement
+  if (ignoreNextJaInput) {
+    ignoreNextJaInput = false
+    target.value = ''
+    return
+  }
+  const text = e.data || target.value
+  target.value = ''
+  if (text) typeJaText(text)
+}
+
+function onJaKeydown(e: KeyboardEvent) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  if (e.isComposing || e.keyCode === 229) {
+    e.stopPropagation()
+    return
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault()
+    e.stopPropagation()
+    del()
+    return
+  }
+  if (e.code === 'Space' && !isJaComposing && !jaImeInputRef?.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    onTyping(e)
+  }
 }
 
 function repeat() {
@@ -200,7 +301,7 @@ const right = $computed(() => {
   if (isTypingSentence()) {
     b = props.word.sentences[currentPracticeSentenceIndex].c
   } else {
-    b = props.word.word
+    b = practiceTarget
   }
 
   if (settingStore.wordPracticeType === WordPracticeType.Dictation) {
@@ -220,7 +321,7 @@ function know(e) {
   if (isSelfAssessment) {
     if (!showWordResult.value) {
       inputLock = showWordResult.value = true
-      input = props.word.word
+      input = practiceTarget
       emit('know')
       if (!showNotice) {
         Toast.info($t('know_word_tip'), { duration: 5000 })
@@ -260,11 +361,11 @@ function select(e, index: number) {
     completeSelect = true
     selectIndex = index
     if (index == props?.question?.correctIndex) {
-      input = props.word.word
+      input = practiceTarget
       playCorrect()
       emit('know')
     } else {
-      wrong = props.word.word
+      wrong = practiceTarget
       playBeep()
       play()
       emit('wrong')
@@ -300,7 +401,7 @@ async function onTyping(e: KeyboardEvent) {
     target = props.word.sentences[currentPracticeSentenceIndex].c
     targetVolumeIcon = sentenceVolumeIconsRefs[currentPracticeSentenceIndex]
   } else {
-    target = props.word.word
+    target = practiceTarget
     targetVolumeIcon = volumeIconRef
   }
   // 输入完成会锁死不能再输入
@@ -654,7 +755,21 @@ const isCollect = $computed(() => isWordCollect(props.word))
 </script>
 
 <template>
-  <div class="typing-word" ref="typingWordRef" v-if="word.word.length">
+  <div class="typing-word" ref="typingWordRef" v-if="word.word.length" @click="focusJaImeInput">
+    <input
+      v-if="isJapaneseImeInput"
+      ref="jaImeInputRef"
+      class="ja-ime-input"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-hidden="true"
+      @compositionstart="onJaCompositionStart"
+      @compositionend="onJaCompositionEnd"
+      @input="onJaInput"
+      @keydown="onJaKeydown"
+    />
     <div class="flex flex-col items-center">
       <div class="flex gap-1 mt-10 md:mt-30">
         <div
@@ -691,7 +806,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
           :title="`发音(${settingStore.shortcutKeyMap[ShortcutKey.PlayWordPronunciation]})`"
           ref="volumeIconRef"
           :simple="true"
-          :cb="() => playWordAudio(word.word)"
+          :cb="() => playWordAudio(word)"
         />
       </div>
 
@@ -711,7 +826,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
               class="letter text-align-center w-full inline-block"
               v-opacity="!settingStore.dictation || showWordResult || showFullWord"
             >
-              {{ word.word }}
+              {{ displayTarget }}
             </div>
             <div
               class="mt-2 w-120 dictation"
@@ -770,6 +885,22 @@ const isCollect = $computed(() => isWordCollect(props.word))
         <BaseIcon @click="emit('skip')" :title="`${$t('skip_word')}(${settingStore.shortcutKeyMap[ShortcutKey.Next]})`">
           <IconFluentArrowBounce20Regular class="transform-rotate-180" />
         </BaseIcon>
+        <div class="ja-input-mode" v-if="isJapaneseWord && !isTypingSentence()">
+          <button
+            type="button"
+            :class="{ active: !isJapaneseRomajiInput }"
+            @click="settingStore.japanesePracticeInputMode = 'kanji'"
+          >
+            汉字输入
+          </button>
+          <button
+            type="button"
+            :class="{ active: isJapaneseRomajiInput }"
+            @click="settingStore.japanesePracticeInputMode = 'romaji'"
+          >
+            罗马音输入
+          </button>
+        </div>
       </div>
 
       <div class="mt-4 flex gap-2" v-if="isSelfAssessment && !showWordResult">
@@ -873,7 +1004,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
               <VolumeIcon
                 :title="`发音`"
                 :simple="false"
-                :cb="() => playTtsWithGuide(item.c)"
+                :cb="() => playTextAudio({ text: item.c, audioSrc: item.audioSrc, language: 'ja' }, () => showTtsGuide(item.c))"
                 ref="sentenceVolumeIconsRefs"
               />
             </div>
@@ -991,6 +1122,16 @@ const isCollect = $computed(() => isWordCollect(props.word))
   position: relative;
   color: var(--color-font-2);
 
+  .ja-ime-input {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .phonetic,
   .translate {
     font-size: 1.2rem;
@@ -1010,6 +1151,32 @@ const isCollect = $computed(() => isWordCollect(props.word))
 
   .is-wrong {
     animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+
+  .ja-input-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--color-border, #37415155);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    line-height: 1;
+
+    button {
+      padding: 0.35rem 0.5rem;
+      border: 0;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--color-font-1);
+      cursor: pointer;
+      white-space: nowrap;
+
+      &.active {
+        color: var(--color-font-2);
+        background: var(--color-item-bg, rgba(127, 127, 127, 0.12));
+      }
+    }
   }
 
   .input,

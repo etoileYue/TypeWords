@@ -262,10 +262,13 @@ export function useStartKeyboardEventListener() {
     if ((e.ctrlKey || e.metaKey) && ['KeyC', 'KeyA'].includes(e.code)) return
     if (window?.disableEventListener) return
     if (!runtimeStore.disableEventListener) {
+      const currentWord = window.__CURRENT_WORD_INFO__
+      if (currentWord?.language === 'ja' && (e.isComposing || e.keyCode === 229)) {
+        return
+      }
       // 检查当前单词是否包含空格，如果包含，则空格键应该被视为输入
       if (e.code === 'Space') {
         // 获取当前正在输入的单词信息
-        const currentWord = window.__CURRENT_WORD_INFO__
 
         // 如果当前单词包含空格，且下一个字符应该是空格，则将空格键视为输入
         // 或者如果当前处于输入锁定状态（等待空格输入），也将空格键视为输入
