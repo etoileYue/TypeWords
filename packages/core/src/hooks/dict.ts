@@ -2,7 +2,7 @@ import type { Article, Dict, TaskWords, Word } from '../types'
 import { DictType, getDefaultDict, getDefaultWord } from '../types'
 import { useBaseStore } from '../stores/base.ts'
 import { useSettingStore } from '../stores/setting.ts'
-import { _getDictDataByUrl, cloneDeep, getRandomN, resourceWrap, shuffle, splitIntoN } from '../utils'
+import { _getDictDataByUrl, cloneDeep, getDictResourceList, getRandomN, resourceWrap, shuffle, splitIntoN } from '../utils'
 import { onMounted, watch } from 'vue'
 import { AppEnv, DICT_LIST, DictId } from '../config/env.ts'
 import { detail } from '../apis'
@@ -226,8 +226,7 @@ export function useGetDict() {
       let dictId = route.params.id
       //先在自己的词典列表里面找，如果没有再在资源列表里面找
       dict = store.article.bookList.find(v => v.id === dictId)
-      let r = await fetch(resourceWrap(DICT_LIST.ARTICLE.ALL))
-      let dict_list = await r.json()
+      let dict_list = await getDictResourceList(DICT_LIST.ARTICLE.ALL)
       if (!dict) dict = dict_list.flat().find(v => v.id === dictId) as Dict
     }
     if (dict && dict.id) {

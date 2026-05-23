@@ -120,5 +120,19 @@
     "language": "en",
     "update": true,
     "cover": "/imgs/covers/nce-4.png"
+  },
+  {
+    "id": "article_shin_nihongo_shokyu_basic",
+    "name": "新版标准日本语初级 基本课文",
+    "description": "新版标准日本语初级 48 课基本课文，按课组织文章练习并配套句级音频。",
+    "category": "文章学习",
+    "tags": [
+      "新标日",
+      "日语"
+    ],
+    "url": "/dicts/ja/article/shin-nihongo-shokyu-basic.json",
+    "length": 48,
+    "translateLanguage": "zh-CN",
+    "language": "ja"
   }
 ]

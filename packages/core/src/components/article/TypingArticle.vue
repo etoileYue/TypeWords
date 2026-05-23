@@ -56,6 +56,7 @@ const emit = defineEmits<{
 
 let typeArticleRef = $ref<HTMLInputElement>()
 let mobileInputRef = $ref<HTMLInputElement>()
+let jaImeInputRef = $ref<HTMLInputElement>()
 let articleWrapperRef = $ref<HTMLInputElement>(null)
 let sectionIndex = $ref(0)
 let sentenceIndex = $ref(0)
@@ -79,6 +80,10 @@ let cursor = $ref({
 const currentIndex = $computed(() => {
   return `${sectionIndex}${sentenceIndex}${wordIndex}`
 })
+const currentTypingWord = $computed(() => {
+  return props.article.sections?.[sectionIndex]?.[sentenceIndex]?.words?.[wordIndex]
+})
+const isJapaneseTypingWord = $computed(() => currentTypingWord?.language === 'ja')
 
 const playBeep = usePlayBeep()
 const playKeyboardAudio = usePlayKeyboardAudio()
@@ -115,12 +120,14 @@ const save = debounce(() => {
 }, 1500)
 
 watch([() => sectionIndex, () => sentenceIndex, () => wordIndex], ([a, b, c]) => {
+  updateCurrentArticleWordInfo()
   if (a !== 0 || b !== 0 || c !== 0) {
     save()
   }
 })
 
 watch([() => sectionIndex, () => sentenceIndex, () => wordIndex, () => stringIndex], ([a, b, c]) => {
+  updateCurrentArticleWordInfo()
   checkCursorPosition(a, b, c)
 })
 
@@ -176,6 +183,7 @@ async function init() {
     window.scrollTo({ top: 0 })
   }
   _nextTick(() => {
+    updateCurrentArticleWordInfo()
     emit('play', { sentence: props.article.sections[sectionIndex][sentenceIndex], handle: false })
     if (isNameWord()) next()
   })
@@ -256,8 +264,22 @@ function checkTranslateLocation() {
 }
 
 function focusMobileInput() {
-  if (!isMob) return
-  mobileInputRef?.focus()
+  if (isMob) {
+    mobileInputRef?.focus()
+  } else if (isJapaneseTypingWord) {
+    _nextTick(() => jaImeInputRef?.focus())
+  }
+}
+
+function updateCurrentArticleWordInfo() {
+  if (!currentTypingWord) return
+  window.__CURRENT_WORD_INFO__ = {
+    word: currentTypingWord.word,
+    input: currentTypingWord.input ?? input,
+    inputLock: isSpace,
+    containsSpace: currentTypingWord.word.includes(' '),
+    language: currentTypingWord.language,
+  }
 }
 
 function processMobileCharacter(char: string) {
@@ -286,6 +308,55 @@ function handleMobileInput(event: Event) {
 function handleMobileBeforeInput(event: InputEvent) {
   if (!isMob) return
   if (event.inputType === 'deleteContentBackward') {
+    event.preventDefault()
+    del()
+  }
+}
+
+let isJaComposing = false
+let ignoreNextJaInput = false
+
+function dispatchJaImeText(text: string) {
+  for (const char of text) {
+    processMobileCharacter(char)
+  }
+}
+
+function handleJaImeCompositionStart() {
+  isJaComposing = true
+}
+
+function handleJaImeCompositionEnd(event: CompositionEvent) {
+  isJaComposing = false
+  const target = event.target as HTMLInputElement
+  const value = event.data || target?.value || ''
+  if (value) {
+    dispatchJaImeText(value)
+    ignoreNextJaInput = true
+    setTimeout(() => {
+      ignoreNextJaInput = false
+    }, 0)
+  }
+  if (target) target.value = ''
+}
+
+function handleJaImeInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  if (ignoreNextJaInput) {
+    if (target) target.value = ''
+    return
+  }
+  if (isJaComposing) return
+  const value = target?.value ?? ''
+  if (!value) return
+  dispatchJaImeText(value)
+  target.value = ''
+}
+
+function handleJaImeKeydown(event: KeyboardEvent) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  event.stopPropagation()
+  if (event.key === 'Backspace') {
     event.preventDefault()
     del()
   }
@@ -423,6 +494,10 @@ function onTyping(e: KeyboardEvent) {
       // }
       let letter = e.key
       let key = currentWord.word[stringIndex]
+      if (currentWord.language === 'ja' && /^[a-z]$/i.test(letter) && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(key)) {
+        e.preventDefault()
+        return
+      }
       // console.log('key', key,)
 
       let isRight = false
@@ -723,6 +798,20 @@ const currentPractice = inject('currentPractice', [])
       @beforeinput="handleMobileBeforeInput"
       @input="handleMobileInput"
     />
+    <input
+      v-if="!isMob && isJapaneseTypingWord"
+      ref="jaImeInputRef"
+      class="ja-ime-input"
+      type="text"
+      inputmode="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="none"
+      @keydown="handleJaImeKeydown"
+      @compositionstart="handleJaImeCompositionStart"
+      @compositionend="handleJaImeCompositionEnd"
+      @input="handleJaImeInput"
+    />
     <header class="md:pt-10 pb-6">
       <div class="text-center">
         <span class="text-3xl">{{ store.sbook.lastLearnIndex + 1 }}. </span>
@@ -875,6 +964,17 @@ $article-lh: 2.4;
     pointer-events: none;
     height: 0;
     width: 0;
+  }
+
+  .ja-ime-input {
+    position: fixed;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    top: 0;
+    left: -9999px;
+    z-index: -1;
   }
 
   .article-content {

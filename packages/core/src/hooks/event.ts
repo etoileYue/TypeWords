@@ -263,7 +263,10 @@ export function useStartKeyboardEventListener() {
     if (window?.disableEventListener) return
     if (!runtimeStore.disableEventListener) {
       const currentWord = window.__CURRENT_WORD_INFO__
-      if (currentWord?.language === 'ja' && (e.isComposing || e.keyCode === 229)) {
+      if (
+        currentWord?.language === 'ja' &&
+        (e.isComposing || e.keyCode === 229 || (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey))
+      ) {
         return
       }
       // 检查当前单词是否包含空格，如果包含，则空格键应该被视为输入

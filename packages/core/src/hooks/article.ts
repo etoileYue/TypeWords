@@ -5,8 +5,12 @@ import { usePlayWordAudio } from './sound'
 import { getSentenceAllText, getSentenceAllTranslateText } from './translate'
 import { useBaseStore } from '../stores/base'
 import { useRuntimeStore } from '../stores/runtime'
+import { useSettingStore } from '../stores/setting'
+import { withAppBaseURL } from '../utils/base-url'
 import { nanoid } from 'nanoid'
 import { DictId } from '../config/env'
+
+const JAPANESE_TEXT_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆ヵヶＡ-Ｚａ-ｚ０-９]+/u
 
 function parseSentence(sentence: string) {
   // 先统一一些常见的“智能引号” -> 直引号，避免匹配问题
@@ -29,8 +33,16 @@ function parseSentence(sentence: string) {
 
     const rest = sentence.slice(i)
 
+    // 日文没有自然空格，连续日文内容应作为可输入词处理，避免被 ignoreSymbol 自动跳过。
+    let m = rest.match(JAPANESE_TEXT_RE)
+    if (m) {
+      tokens.push({ word: m[0], start: i, end: i + m[0].length, type: PracticeArticleWordType.Word, language: 'ja' })
+      i += m[0].length
+      continue
+    }
+
     // 1) 货币 + 数字（$1,000.50 或 ¥200 或 €100.5）
-    let m = rest.match(/^[\$¥€£]\d{1,3}(?:,\d{3})*(?:\.\d+)?%?/)
+    m = rest.match(/^[\$¥€£]\d{1,3}(?:,\d{3})*(?:\.\d+)?%?/)
     if (m) {
       tokens.push({ word: m[0], start: i, end: i + m[0].length, type: PracticeArticleWordType.Number })
       i += m[0].length
@@ -79,7 +91,7 @@ function parseSentence(sentence: string) {
     const next = tokens[idx + 1]
     const between = next ? sentence.slice(t.end, next.start) : sentence.slice(t.end)
     const nextSpace = /\s/.test(between)
-    return getDefaultArticleWord({ word: t.word, nextSpace, type: t.type })
+    return getDefaultArticleWord({ word: t.word, nextSpace, type: t.type, language: t.language })
   })
 
   return result
@@ -156,6 +168,17 @@ export function genArticleSectionData(article: Article): number {
       v.map((w, j) => {
         w.audioPosition = article.lrcPosition[count]
         count++
+      })
+    })
+  }
+
+  if (article?.sentenceAudioSrcList?.length) {
+    let audioIndex = 0
+    article.sections.map(section => {
+      section.map(sentence => {
+        const audioSrc = article.sentenceAudioSrcList[audioIndex]
+        if (audioSrc) sentence.audioSrc = audioSrc
+        audioIndex++
       })
     })
   }
@@ -343,11 +366,27 @@ export function splitCNArticle2(text: string): string {
 }
 
 export function usePlaySentenceAudio() {
+  const settingStore = useSettingStore()
   const playWordAudio = usePlayWordAudio()
   let timer = $ref<any>(0)
+  let audio = $ref<HTMLAudioElement>()
 
   function playSentenceAudio(sentence: Sentence, ref?: HTMLAudioElement) {
-    if (sentence.audioPosition?.length && ref && ref.src) {
+    clearTimeout(timer)
+
+    if (sentence.audioSrc) {
+      if (ref?.played) {
+        ref.pause()
+      }
+      if (!audio) audio = new Audio()
+      audio.pause()
+      audio.currentTime = 0
+      audio.src = withAppBaseURL(sentence.audioSrc)
+      audio.volume = settingStore.articleSoundVolume / 100
+      audio.playbackRate = settingStore.articleSoundSpeed
+      audio.onerror = () => playWordAudio(sentence.text)
+      audio.play().catch(() => playWordAudio(sentence.text))
+    } else if (sentence.audioPosition?.length && ref && ref.src) {
       clearTimeout(timer)
       if (ref.played) {
         ref.pause()

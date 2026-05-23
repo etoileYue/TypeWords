@@ -63,6 +63,7 @@ export interface Sentence {
   translate: string
   words: ArticleWord[]
   audioPosition: number[]
+  audioSrc?: string
 }
 
 export interface Article {
@@ -74,6 +75,7 @@ export interface Article {
   newWords: Word[]
   sections: Sentence[][]
   audioSrc: string
+  sentenceAudioSrcList?: string[]
   audioFileId: string
   lrcPosition: number[][]
   nameList: string[]

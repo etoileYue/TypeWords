@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { resourceWrap, useNav } from '@typewords/core/utils'
+import { mergeDictResourceList, resourceWrap, useNav } from '@typewords/core/utils'
 import { BaseButton, BaseIcon, BasePage, BackIcon } from '@typewords/base'
 import type { DictResource } from '@typewords/core/types/types.ts'
 import { useRuntimeStore } from '@typewords/core/stores/runtime.ts'
@@ -29,9 +29,10 @@ async function getDictDetail(val: DictResource) {
 let showSearchInput = $ref(false)
 let searchKey = $ref('')
 const { data: bookList, isFetching } = useFetch<DictResource[]>(resourceWrap(DICT_LIST.ARTICLE.ALL)).json()
+const { data: localBookList } = useFetch<DictResource[]>(resourceWrap('/list/article.json')).json()
 
 const list = $computed(() => {
-  return bookList.value?.filter(item => !item.hidden)
+  return mergeDictResourceList(bookList.value, localBookList.value).filter(item => !item.hidden)
 })
 
 const searchList = computed<any[]>(() => {

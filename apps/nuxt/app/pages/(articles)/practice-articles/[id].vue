@@ -24,7 +24,7 @@ import { useRuntimeStore } from '@typewords/core/stores/runtime.ts'
 import { useSettingStore } from '@typewords/core/stores/setting.ts'
 import { getDefaultArticle, getDefaultDict, getDefaultWord } from '@typewords/core/types/func.ts'
 import type { Article, ArticleItem, ArticleWord, Dict, Statistics, Word } from '@typewords/core/types/types.ts'
-import { _getDictDataByUrl, _nextTick, cloneDeep, msToMinute, resourceWrap, total } from '@typewords/core/utils'
+import { _getDictDataByUrl, _nextTick, cloneDeep, getDictResourceList, msToMinute, total } from '@typewords/core/utils'
 import { getPracticeArticleCacheLocal } from '@typewords/core/utils/cache.ts'
 import { usePracticeArticlePersistence } from '@typewords/core/composables/usePracticePersistence'
 import { useEvents, emitter, EventKey } from '@typewords/core/utils/eventBus'
@@ -112,8 +112,7 @@ async function init() {
   if (dictId) {
     //先在自己的词典列表里面找，如果没有再在资源列表里面找
     dict = store.article.bookList.find(v => v.id == dictId)
-    let r = await fetch(resourceWrap(DICT_LIST.ARTICLE.ALL))
-    let book_list = await r.json()
+    let book_list = await getDictResourceList(DICT_LIST.ARTICLE.ALL)
     if (!dict) dict = book_list.find(v => v.id === dictId) as Dict
     if (dict && dict.id) {
       //如果是不是自定义词典，就请求数据
@@ -137,6 +136,7 @@ async function init() {
 const initAudio = () => {
   _nextTick(() => {
     if (import.meta.server) return
+    if (!audioRef) return
     audioRef.volume = settingStore.articleSoundVolume / 100
     audioRef.playbackRate = settingStore.articleSoundSpeed
   })
@@ -321,12 +321,25 @@ function getCurrentPractice() {
   emitter.emit(EventKey.resetWord)
   let currentArticle = articleData.list[store.sbook.lastLearnIndex]
   let article = getDefaultArticle(currentArticle)
-  if (article.sections.length) {
+  if (article.sections.length && !shouldRegenerateJapaneseArticleSections(article)) {
     setArticle(article)
   } else {
     genArticleSectionData(article)
     setArticle(article)
   }
+}
+
+function shouldRegenerateJapaneseArticleSections(article: Article) {
+  if (!article.sentenceAudioSrcList?.length) return false
+  return article.sections.some(section =>
+    section.some(sentence =>
+      sentence.words.some(
+        word =>
+          word.type === PracticeArticleWordType.Symbol &&
+          /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(word.word)
+      )
+    )
+  )
 }
 
 function saveArticle(val: Article) {

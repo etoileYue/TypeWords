@@ -360,6 +360,42 @@ export async function _getDictDataByUrl(val: DictResource, type: DictType = Dict
   return getDefaultDict()
 }
 
+export function mergeDictResourceList<T extends { id?: string }>(
+  resourceList: T[] | null = [],
+  localResourceList: T[] | null = []
+): T[] {
+  const map = new Map<string, T>()
+
+  ;(resourceList ?? []).filter(Boolean).forEach(item => {
+    if (item.id) map.set(item.id, item)
+  })
+  ;(localResourceList ?? []).filter(Boolean).forEach(item => {
+    if (item.id) map.set(item.id, item)
+  })
+
+  return Array.from(map.values())
+}
+
+export async function getDictResourceList(resource: string): Promise<DictResource[]> {
+  const resourceList = await fetch(resourceWrap(resource)).then(r => r.json())
+  const localPath = (() => {
+    try {
+      return new URL(resource).pathname
+    } catch {
+      return resource.startsWith('/list/') ? resource : ''
+    }
+  })()
+
+  if (!localPath.startsWith('/list/')) return resourceList
+
+  try {
+    const localResourceList = await fetch(resourceWrap(localPath)).then(r => r.json())
+    return mergeDictResourceList(resourceList, localResourceList)
+  } catch {
+    return resourceList
+  }
+}
+
 //从字符串里面转换为Word格式
 export function convertToWord(raw: any) {
   const safeString = str => (typeof str === 'string' ? str.trim() : '')
