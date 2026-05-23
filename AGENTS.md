@@ -11,6 +11,20 @@ TypeWords 是一个基于 pnpm workspace 的 TypeScript/Vue monorepo，主要用
 - `packages/base`：基础 UI 组件库。
 - `packages/libs`：翻译、语言列表等通用库。
 
+## 日语练习相关代码位置
+
+本轮任务重点关注日语练习相关功能时，优先查看和修改以下位置，避免误改英语单词或文章练习的通用逻辑：
+
+- `packages/core/src/components/word/TypeWord.vue`：日语单词练习主入口。这里判断 `word.language === 'ja'` / `store.sdict.language === 'ja'`，处理汉字输入与罗马音输入切换、隐藏 IME 输入框、composition/input/keydown 事件、练习目标展示、日语例句发音按钮和 `.ja-input-mode` / `.ja-ime-input` 样式。
+- `packages/core/src/utils/japanese.ts`：日语练习目标计算。`getJapanesePracticeTarget` 在罗马音模式下优先使用 `word.reading`，并通过 `wanakana` 的 `toRomaji` 转换输入目标。
+- `packages/core/src/stores/setting.ts`：日语输入模式设置。`japanesePracticeInputMode: 'kanji' | 'romaji'` 默认值为 `kanji`，由 `TypeWord.vue` 的切换按钮直接更新。
+- `packages/core/src/hooks/event.ts`：全局键盘事件。日语练习中遇到 IME composition 或 `keyCode === 229` 时跳过全局快捷键处理，避免输入法候选确认被误判。
+- `packages/core/src/hooks/sound.ts`：发音逻辑。日语 TTS 使用 `ja-JP`，并优先选择日语浏览器声色。
+- `packages/core/src/types/types.ts`：语言类型和词条结构。`LanguageType` / `TranslateLanguageType` 包含 `ja`，`Word.reading` 可作为日语假名读音来源。
+- `apps/nuxt/public/list/custom_word.json`：日语词库入口，目前包含 `shin-nihongo-shokyu`，语言为 `ja`，翻译语言为 `zh-CN`。
+- `apps/nuxt/public/dicts/ja/word/shin-nihongo-shokyu.json`：日语词库数据，体积较大；只在需要调整词条、读音、音频或例句数据时修改。
+- `packages/core/package.json`：`wanakana` 依赖声明，支撑罗马音转换。
+
 ## 常用命令
 
 优先使用 pnpm：
