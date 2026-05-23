@@ -52,8 +52,10 @@ watch(
 const { locales, setLocale } = useI18n()
 const route = useRoute()
 
+const isWordsRoute = $computed(() => route.path === '/word' || route.path?.includes('/words'))
+
 const showIcon = $computed(() => {
-  return ['/words', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
+  return ['/word', '/words', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
 })
 
 onMounted(() => {
@@ -77,7 +79,7 @@ onMounted(() => {
     <div class="aside anim fixed">
       <div class="top" :class="!expand && 'hidden-span'">
         <Logo v-if="expand" />
-        <NuxtLink to="/words" class="row">
+        <NuxtLink to="/word" class="row">
           <IconFluentTextUnderlineDouble20Regular />
           <span>{{ $t('words') }}</span>
         </NuxtLink>
@@ -122,11 +124,7 @@ onMounted(() => {
     <!-- 移动端顶部菜单栏 -->
     <div class="mobile-top-nav" :class="{ collapsed: settingStore.mobileNavCollapsed }">
       <div class="nav-items">
-        <div class="nav-item" @click="router.push('/')" :class="{ active: route.path === '/' }">
-          <IconFluentHome20Regular />
-          <span>主页</span>
-        </div>
-        <div class="nav-item" @click="router.push('/words')" :class="{ active: route.path?.includes('/words') }">
+        <div class="nav-item" @click="router.push('/word')" :class="{ active: isWordsRoute }">
           <IconFluentTextUnderlineDouble20Regular />
           <span>单词</span>
         </div>

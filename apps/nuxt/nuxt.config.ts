@@ -121,6 +121,8 @@ export default defineNuxtConfig({
   },
   // ssr: false,
   routeRules: {
+    '/': { redirect: '/word' },
+    '/word': { ssr: false },
     '/words': { ssr: false },
     '/articles': { ssr: false },
     '/setting': { ssr: false },

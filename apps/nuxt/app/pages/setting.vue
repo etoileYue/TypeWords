@@ -435,7 +435,7 @@ onMounted(() => {
 
 function transferOk() {
   setTimeout(() => {
-    window.location.href = '/words'
+    window.location.href = '/word'
   }, 1500)
 }
 
@@ -551,7 +551,7 @@ function removeSbConfig() {
       sbStatus = { status: 'idle', statusMessage: undefined }
       Toast.success('清除成功')
       setTimeout(() => {
-        location.href = '/words'
+        location.href = '/word'
       }, 1000)
     }
   })

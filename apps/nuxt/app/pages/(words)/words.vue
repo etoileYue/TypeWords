@@ -69,6 +69,10 @@ let isSaveData = $ref(false)
 
 const shouldShowDialogPracticeMode = [WordPracticeMode.Shuffle, WordPracticeMode.ShuffleWordsTest]
 
+definePageMeta({
+  alias: ['/word'],
+})
+
 useHead({
   title: APP_NAME + ' 单词',
 })
