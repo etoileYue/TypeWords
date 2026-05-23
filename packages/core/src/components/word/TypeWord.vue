@@ -126,6 +126,7 @@ let isJapaneseWord = $computed(() => props.word.language === 'ja' || store.sdict
 let isJapaneseRomajiInput = $computed(
   () => isJapaneseWord && settingStore.japanesePracticeInputMode === 'romaji' && !isTypingSentence()
 )
+let isJapaneseRomajiPractice = $computed(() => isJapaneseRomajiInput && !isTypingSentence())
 let isJapaneseImeInput = $computed(() => isJapaneseWord && settingStore.japanesePracticeInputMode !== 'romaji')
 let practiceTarget = $computed(() => {
   if (isTypingSentence()) {
@@ -203,6 +204,27 @@ function focusJaImeInput() {
   _nextTick(() => {
     jaImeInputRef?.focus()
   })
+}
+
+function switchJapanesePracticeInputMode(mode: 'kanji' | 'romaji') {
+  if (settingStore.japanesePracticeInputMode === mode) {
+    focusJaImeInput()
+    return
+  }
+  clearJumpTimer()
+  settingStore.japanesePracticeInputMode = mode
+  wrong = input = ''
+  inputLock = false
+  showFullWord = false
+  showWordResult.value = false
+  showAllCandidates = false
+  wordCompletedTime = 0
+  pressNumber = 0
+  isJaComposing = false
+  ignoreNextJaInput = false
+  updateCurrentWordInfo()
+  checkCursorPosition()
+  focusJaImeInput()
 }
 
 function createSyntheticKey(char: string): KeyboardEvent {
@@ -313,6 +335,18 @@ const right = $computed(() => {
   } else {
     return a === b
   }
+})
+
+let romajiAnswerVisible = $computed(() => showFullWord || showWordResult.value)
+let showRomajiCorrectAnswer = $computed(() => isJapaneseRomajiPractice && showWordResult.value && !right)
+let displayRomajiAnswer = $computed(() => {
+  if (romajiAnswerVisible) {
+    return displayWord
+  }
+  return displayWord
+    .split('')
+    .map(v => (v === ' ' ? '&nbsp;' : '_'))
+    .join('')
 })
 
 let showNotice = false
@@ -670,7 +704,17 @@ function mouseleave() {
   }, 50)
 }
 
-watch([() => input, () => showFullWord, () => settingStore.dictation], checkCursorPosition)
+watch(
+  [
+    () => input,
+    () => wrong,
+    () => showFullWord,
+    () => showWordResult.value,
+    () => settingStore.dictation,
+    () => settingStore.japanesePracticeInputMode,
+  ],
+  checkCursorPosition
+)
 
 //检测光标位置
 function checkCursorPosition() {
@@ -695,8 +739,11 @@ function checkCursorPosition() {
       }
     } else {
       const dictation = document.querySelector(`.dictation`)
+      const jaRomajiRest = document.querySelector(`.ja-romaji-answer .ja-romaji-rest`)
       let elRect
-      if (dictation) {
+      if (isJapaneseRomajiPractice && jaRomajiRest) {
+        elRect = jaRomajiRest.getBoundingClientRect()
+      } else if (dictation) {
         elRect = dictation.getBoundingClientRect()
       } else {
         const letter = document.querySelector(`.letter`)
@@ -821,7 +868,29 @@ const isCollect = $computed(() => isWordCollect(props.word))
           @mouseenter="showWord"
           @mouseleave="mouseleave"
         >
-          <div v-if="settingStore.wordPracticeType === WordPracticeType.Dictation">
+          <div v-if="isJapaneseRomajiPractice" class="ja-romaji-practice">
+            <div class="ja-romaji-kanji letter">
+              {{ word.word }}
+            </div>
+            <div
+              class="mt-2 w-120 dictation ja-romaji-answer"
+              :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
+              :class="showWordResult ? (right ? 'right' : 'wrong') : ''"
+            >
+              <template v-if="showRomajiCorrectAnswer">
+                <span class="letter">{{ displayTarget }}</span>
+              </template>
+              <template v-else>
+                <template v-for="i in input">
+                  <span class="input l" v-if="i !== ' '">{{ i }}</span>
+                  <Space class="l" v-else :is-wrong="showWordResult ? !right : false" :is-wait="!showWordResult" />
+                </template>
+                <span class="wrong l" v-if="wrong">{{ wrong }}</span>
+                <span class="letter ja-romaji-rest">{{ displayRomajiAnswer }}</span>
+              </template>
+            </div>
+          </div>
+          <div v-else-if="settingStore.wordPracticeType === WordPracticeType.Dictation">
             <div
               class="letter text-align-center w-full inline-block"
               v-opacity="!settingStore.dictation || showWordResult || showFullWord"
@@ -889,14 +958,14 @@ const isCollect = $computed(() => isWordCollect(props.word))
           <button
             type="button"
             :class="{ active: !isJapaneseRomajiInput }"
-            @click="settingStore.japanesePracticeInputMode = 'kanji'"
+            @click="switchJapanesePracticeInputMode('kanji')"
           >
             汉字输入
           </button>
           <button
             type="button"
             :class="{ active: isJapaneseRomajiInput }"
-            @click="settingStore.japanesePracticeInputMode = 'romaji'"
+            @click="switchJapanesePracticeInputMode('romaji')"
           >
             罗马音输入
           </button>
@@ -1147,6 +1216,36 @@ const isCollect = $computed(() => isWordCollect(props.word))
     line-height: 1;
     font-family: var(--en-article-family);
     letter-spacing: 0.3rem;
+  }
+
+  .ja-romaji-practice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: min(30rem, 80vw);
+  }
+
+  .ja-romaji-kanji {
+    width: 100%;
+    text-align: center;
+    line-height: 1.15;
+    letter-spacing: 0.08em;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .ja-romaji-answer {
+    box-sizing: border-box;
+    border-bottom: 0;
+    max-width: 80vw;
+    line-height: 1.15;
+    text-align: center;
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  .ja-romaji-rest {
+    color: var(--color-font-2);
   }
 
   .is-wrong {
