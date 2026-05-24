@@ -265,6 +265,7 @@ export function useStartKeyboardEventListener() {
       const currentWord = window.__CURRENT_WORD_INFO__
       if (
         currentWord?.language === 'ja' &&
+        !currentWord?.isRomajiMode &&
         (e.isComposing || e.keyCode === 229 || (/^[a-z]$/i.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey))
       ) {
         return

@@ -144,6 +144,7 @@ function updateCurrentWordInfo() {
     inputLock: inputLock,
     containsSpace: practiceTarget.includes(' '),
     language: props.word.language || store.sdict.language,
+    isRomajiMode: isJapaneseRomajiInput,
   }
 }
 

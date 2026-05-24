@@ -18,6 +18,7 @@ declare global {
       inputLock: boolean,
       containsSpace: boolean
       language?: string
+      isRomajiMode?: boolean
     }
   }
 }
