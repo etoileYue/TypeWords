@@ -159,7 +159,7 @@ function reset() {
   wordCompletedTime = 0 // 重置时间戳
   wrongTimes.value = 0
   if (settingStore.wordSound) {
-    if (settingStore.wordPracticeType !== WordPracticeType.Dictation) {
+    if (!settingStore.dictation || settingStore.wordPracticeType === WordPracticeType.Listen) {
       volumeIconRef?.play(400, true)
     }
   }
