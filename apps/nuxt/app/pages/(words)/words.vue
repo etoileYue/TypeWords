@@ -432,8 +432,7 @@ async function onShufflePracticeSettingOk(total: number) {
     store.sdict.words
       .slice(0, store.sdict.lastLearnIndex)
       .filter(v => !ignoreSet.has(v.word))
-      .slice(0, total)
-  )
+  ).slice(0, total)
   nav(
     WordPracticeModeUrlMap[editingWordPracticeMode] + '/' + store.sdict.id,
     {},
