@@ -1044,3 +1044,79 @@ const practiceTarget = $computed(() =>
 ---
 
 > **最后的话**：学习一个真实项目的代码是提升编程能力的最好方式。不要试图一次读懂所有代码。从小的、简单的文件开始，逐步建立对整个项目的理解。每当你遇到不认识的语法，回到本文档对应的 TypeScript / Vue 章节查阅。随着阅读量增加，你会发现自己能看懂越来越多的代码。加油！
+
+
+### 数据存储
+## 数据存储概览
+
+项目的数据存储分为以下几个层次：
+
+### 1. 本地持久化存储 — IndexedDB（主力）
+
+通过 `idb-keyval` 库操作，所有核心数据都以 key-value 形式存储：
+
+| Key                   | 内容                                           |
+| --------------------- | ---------------------------------------------- |
+| `typing-word-dict`    | 词库数据、学习进度、统计数据、FSRS 卡片        |
+| `typing-word-setting` | 所有用户设置（练习模式、音效、主题、快捷键等） |
+| `PracticeSaveWord`    | 单词练习的进行中会话状态                       |
+| `PracticeSaveArticle` | 文章练习的进行中会话状态                       |
+| `typing-word-files`   | 用户上传的自定义音频文件（Blob）               |
+| `type-words-backup-*` | 版本快照备份（最多 10-15 个）                  |
+
+相关文件：
+- `packages/core/src/utils/cache.ts` — 练习缓存读写
+- `packages/core/src/stores/base.ts` — 词库 store 初始化
+- `packages/core/src/stores/setting.ts` — 设置 store 初始化
+- `packages/core/src/config/env.ts` — 所有 key 名的定义
+
+### 2. 辅助存储 — localStorage
+
+用于少量轻量数据：JWT token、Supabase 连接配置、新手引导标记、迁移标记等。
+
+### 3. 内存状态 — Pinia Store（5 个）
+
+| Store      | 用途                           |
+| ---------- | ------------------------------ |
+| `base`     | 词库、文章、学习进度、统计数据 |
+| `setting`  | 用户偏好设置                   |
+| `user`     | 登录状态、用户信息             |
+| `practice` | 当前练习会话的运行时指标       |
+| `runtime`  | UI 状态（弹窗、loading 等）    |
+
+通过 `$subscribe` 监听变化，自动防抖写入 IndexedDB（`packages/core/src/composables/useInit.ts:78-119`）。
+
+### 4. 后台 API
+
+- **官方后端**（REST + Axios）：用户认证、词库管理、统计上报、会员。API 定义在 `packages/core/src/apis/` 下。
+- **CDN 静态资源**：词库目录 JSON 通过 `useFetch` 从 CDN 拉取。
+
+---
+
+## 数据同步 — 已有完整实现
+
+项目**已经有一套基于 Supabase 的数据同步系统**，并非没有接口。核心文件：
+
+- **`packages/core/src/composables/useDataSyncPersistence.ts`**（603 行）— 同步主逻辑
+- **`packages/core/src/utils/supabase.ts`** — Supabase 连接管理
+- **`packages/core/src/types/enum.ts:131-136`** — `SyncDataType` 枚举定义了四种同步数据类型：`dict`、`setting`、`practice_word`、`practice_article`
+
+### 同步机制
+
+1. **元数据对比**：比较本地和远程的 `updated_at` / `data_version` 时间戳，判断哪边更新
+2. **双向同步**：`syncData()` 方法会拉取远程更新的数据，同时推送本地更新的数据
+3. **Upsert 策略**：通过 `type` 字段作为唯一键，冲突时覆盖
+4. **触发时机**：
+   - 应用初始化时（`useInit.ts:64-69`）
+   - 页面切回前台时（tab visibility change）
+   - 设置页面手动操作
+5. **版本快照**：每次同步前自动备份当前数据到 `type-words-backup-{hash}`，防止数据丢失
+6. **同步阻塞**：当自定义文章包含自定义音频时，阻止同步（Blob 数据无法同步）
+
+### 相关接口和导出
+
+- `useDataSyncPersistence` 导出了 `syncData()`、`saveLocalAndSync()`、`forcePushLocalDataToRemote()`、`pullAllRemoteToLocal()`、`pullIfRemoteNewer()` 等方法，可以直接调用
+- `packages/core/src/hooks/export.ts` 提供了数据导出为 ZIP 的功能
+- 设置页面（`apps/nuxt/app/pages/setting.vue`）提供了 UI 来配置 Supabase 连接和选择首次同步方向
+
+**总结**：数据同步的基础设施已经比较完善。如果你要做进一步的同步开发，入口是 `useDataSyncPersistence.ts`，它提供了单向拉取、单向推送、双向合并等多种策略，Supabase 连接通过 `packages/core/src/utils/supabase.ts` 管理。你有什么具体的同步需求？
