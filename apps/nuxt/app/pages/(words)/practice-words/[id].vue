@@ -348,6 +348,8 @@ async function initData(initVal?: TaskWords, init: boolean = false) {
             statStore.stage = WordPracticeStage.DictationReview
           } else if (settingStore.wordPracticeMode === WordPracticeMode.ListenOnly) {
             statStore.stage = WordPracticeStage.ListenReview
+          } else if (settingStore.wordPracticeMode === WordPracticeMode.MeaningRecallOnly) {
+            statStore.stage = WordPracticeStage.MeaningRecallReview
           }
         } else {
           Toast.warning('没有可学习的单词！')
@@ -427,6 +429,10 @@ function watchStage(n: WordPracticeStage) {
     case WordPracticeStage.IdentifyReview:
       settingStore.wordPracticeType = WordPracticeType.Identify
       break
+    case WordPracticeStage.MeaningRecallNewWord:
+    case WordPracticeStage.MeaningRecallReview:
+      settingStore.wordPracticeType = WordPracticeType.MeaningRecall
+      break
   }
 }
 
@@ -449,6 +455,10 @@ function watchPracticeType(n: WordPracticeType) {
     case WordPracticeType.Identify:
       settingStore.dictation = false
       settingStore.translate = false
+      break
+    case WordPracticeType.MeaningRecall:
+      settingStore.dictation = false
+      settingStore.translate = true
       break
   }
 }
@@ -636,6 +646,8 @@ function next(isTyping: boolean = true, ignoreLoop = false) {
           } else if (statStore.stage === WordPracticeStage.ListenNewWord) {
             nextStage(shuffle(taskWords.new), '开始默写新词')
           } else if (statStore.stage === WordPracticeStage.DictationNewWord) {
+            nextStage(shuffle(taskWords.new), '开始释义回忆新词')
+          } else if (statStore.stage === WordPracticeStage.MeaningRecallNewWord) {
             console.log('新词学习完成')
             nextStage(taskWords.review, '开始自测旧词')
           } else if (statStore.stage === WordPracticeStage.IdentifyReview) {
@@ -643,6 +655,8 @@ function next(isTyping: boolean = true, ignoreLoop = false) {
           } else if (statStore.stage === WordPracticeStage.ListenReview) {
             nextStage(shuffle(taskWords.review), '开始默写旧词')
           } else if (statStore.stage === WordPracticeStage.DictationReview) {
+            nextStage(shuffle(taskWords.review), '开始释义回忆旧词')
+          } else if (statStore.stage === WordPracticeStage.MeaningRecallReview) {
             complete()
           }
         } else if (settingStore.wordPracticeMode === WordPracticeMode.ListenOnly) {
@@ -657,10 +671,16 @@ function next(isTyping: boolean = true, ignoreLoop = false) {
           if (statStore.stage === WordPracticeStage.IdentifyNewWord) {
             nextStage(taskWords.review, '开始自测旧词')
           } else if (statStore.stage === WordPracticeStage.IdentifyReview) complete()
+        } else if (settingStore.wordPracticeMode === WordPracticeMode.MeaningRecallOnly) {
+          if (statStore.stage === WordPracticeStage.MeaningRecallNewWord) {
+            nextStage(taskWords.review, '开始释义回忆旧词', true)
+          } else if (statStore.stage === WordPracticeStage.MeaningRecallReview) complete()
         } else if (settingStore.wordPracticeMode === WordPracticeMode.Shuffle) {
           if (statStore.stage === WordPracticeStage.Shuffle) complete()
         } else if (settingStore.wordPracticeMode === WordPracticeMode.Review) {
-          if (statStore.stage === WordPracticeStage.IdentifyReview) {
+          if (statStore.stage === WordPracticeStage.MeaningRecallReview) {
+            nextStage(shuffle(taskWords.review), '开始自测旧词')
+          } else if (statStore.stage === WordPracticeStage.IdentifyReview) {
             nextStage(shuffle(taskWords.review), '开始听写旧词', true)
           } else if (statStore.stage === WordPracticeStage.ListenReview) {
             nextStage(shuffle(taskWords.review), '开始默写旧词')

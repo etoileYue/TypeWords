@@ -76,6 +76,7 @@ export enum WordPracticeMode {
   // words-test
   ShuffleWordsTest = 7, // 单词测试模式
   ReviewWordsTest = 8, // 单词测试模式
+  MeaningRecallOnly = 9, // 独立释义回忆模式
 }
 
 //练习类型
@@ -85,6 +86,7 @@ export enum WordPracticeType {
   Identify,
   Listen,
   Dictation,
+  MeaningRecall, // 释义回忆
 }
 
 export enum CodeType {
@@ -113,6 +115,8 @@ export enum WordPracticeStage {
   IdentifyReview = 5,
   ListenReview = 6,
   DictationReview = 7,
+  MeaningRecallNewWord = 8,
+  MeaningRecallReview = 9,
 
   Shuffle = 12,
   Complete = 13,

@@ -61,9 +61,11 @@ const stages = $computed(() => {
       [WordPracticeStage.IdentifyNewWord]: { stageIndex: 0, childIndex: 0 },
       [WordPracticeStage.ListenNewWord]: { stageIndex: 0, childIndex: 1 },
       [WordPracticeStage.DictationNewWord]: { stageIndex: 0, childIndex: 2 },
+      [WordPracticeStage.MeaningRecallNewWord]: { stageIndex: 0, childIndex: 3 },
       [WordPracticeStage.IdentifyReview]: { stageIndex: 1, childIndex: 0 },
       [WordPracticeStage.ListenReview]: { stageIndex: 1, childIndex: 1 },
       [WordPracticeStage.DictationReview]: { stageIndex: 1, childIndex: 2 },
+      [WordPracticeStage.MeaningRecallReview]: { stageIndex: 1, childIndex: 3 },
     }
 
     // console.log('statStore.stage',statStore.stage)
@@ -76,7 +78,7 @@ const stages = $computed(() => {
     const currentProgress = (practiceData.index / practiceData.words.length) * 100
 
     if (
-      [WordPracticeMode.IdentifyOnly, WordPracticeMode.DictationOnly, WordPracticeMode.ListenOnly].includes(
+      [WordPracticeMode.IdentifyOnly, WordPracticeMode.DictationOnly, WordPracticeMode.ListenOnly, WordPracticeMode.MeaningRecallOnly].includes(
         settingStore.wordPracticeMode
       )
     ) {
@@ -115,6 +117,7 @@ const stages = $computed(() => {
             { name: WordPracticeStageNameMap[WordPracticeStage.FollowWriteNewWord] },
             { name: WordPracticeStageNameMap[WordPracticeStage.ListenNewWord] },
             { name: WordPracticeStageNameMap[WordPracticeStage.DictationNewWord] },
+            { name: WordPracticeStageNameMap[WordPracticeStage.MeaningRecallNewWord] },
           ],
         },
         {
@@ -124,6 +127,7 @@ const stages = $computed(() => {
             { name: WordPracticeStageNameMap[WordPracticeStage.IdentifyReview] },
             { name: WordPracticeStageNameMap[WordPracticeStage.ListenReview] },
             { name: WordPracticeStageNameMap[WordPracticeStage.DictationReview] },
+            { name: WordPracticeStageNameMap[WordPracticeStage.MeaningRecallReview] },
           ],
         },
       ]

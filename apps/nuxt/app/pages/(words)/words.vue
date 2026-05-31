@@ -667,6 +667,13 @@ onUnmounted(() => {
               <!--              >-->
               <!--                {{ WordPracticeModeNameMap[WordPracticeMode.DictationOnly] }}-->
               <!--              </BaseButton>-->
+              <!--              <BaseButton-->
+              <!--                class="w-full"-->
+              <!--                v-if="settingStore.wordPracticeMode !== WordPracticeMode.MeaningRecallOnly"-->
+              <!--                @click="startPractice(WordPracticeMode.MeaningRecallOnly, true)"-->
+              <!--              >-->
+              <!--                {{ WordPracticeModeNameMap[WordPracticeMode.MeaningRecallOnly] }}-->
+              <!--              </BaseButton>-->
             </template>
           </OptionButton>
 

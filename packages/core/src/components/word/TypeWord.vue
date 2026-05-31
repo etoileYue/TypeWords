@@ -159,7 +159,7 @@ function reset() {
   wordCompletedTime = 0 // 重置时间戳
   wrongTimes.value = 0
   if (settingStore.wordSound) {
-    if (!settingStore.dictation || settingStore.wordPracticeType === WordPracticeType.Listen) {
+    if ((!settingStore.dictation && settingStore.wordPracticeType !== WordPracticeType.MeaningRecall) || settingStore.wordPracticeType === WordPracticeType.Listen) {
       volumeIconRef?.play(400, true)
     }
   }
@@ -307,7 +307,7 @@ const right = $computed(() => {
     b = practiceTarget
   }
 
-  if (settingStore.wordPracticeType === WordPracticeType.Dictation) {
+  if ([WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(settingStore.wordPracticeType)) {
     a = normalizeWord(a)
     b = normalizeWord(b)
   }
@@ -462,8 +462,8 @@ async function onTyping(e: KeyboardEvent) {
   inputLock = true
   let letter = e.key
   // console.log('letter',letter)
-  //默写特殊逻辑
-  if (settingStore.wordPracticeType === WordPracticeType.Dictation) {
+  //默写/释义回忆特殊逻辑
+  if ([WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(settingStore.wordPracticeType)) {
     if (e.code === 'Space') {
       //如果输入长度大于单词长度/单词不包含空格，并且输入不为空（开始直接输入空格不行），则显示单词；
       // 这里inputLock 不设为 false，不能再输入了，只能删除（删除会重置 inputLock）或按空格切下一格
@@ -668,7 +668,7 @@ function typo() {
 }
 
 function play() {
-  if (settingStore.wordPracticeType === WordPracticeType.Dictation || settingStore.dictation) {
+  if ([WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(settingStore.wordPracticeType) || settingStore.dictation) {
     if (!showWordResult.value && !right) {
       //输入完成，或者已显示的情况下，不记入错误
       typo()
@@ -769,7 +769,7 @@ const notice = $computed(() => {
             : $t('press_delete_reinput')
           : '按空格键完成输入'
   return {
-    show: [WordPracticeType.Listen, WordPracticeType.Identify, WordPracticeType.Dictation].includes(
+    show: [WordPracticeType.Listen, WordPracticeType.Identify, WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(
       settingStore.wordPracticeType
     ),
     text,
@@ -804,7 +804,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
           class="phonetic"
           :class="
             (settingStore.dictation ||
-              [WordPracticeType.Spell, WordPracticeType.Listen, WordPracticeType.Dictation].includes(
+              [WordPracticeType.Spell, WordPracticeType.Listen, WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(
                 settingStore.wordPracticeType
               )) &&
             !showFullWord &&
@@ -819,7 +819,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
           class="phonetic"
           :class="
             (settingStore.dictation ||
-              [WordPracticeType.Spell, WordPracticeType.Listen, WordPracticeType.Dictation].includes(
+              [WordPracticeType.Spell, WordPracticeType.Listen, WordPracticeType.Dictation, WordPracticeType.MeaningRecall].includes(
                 settingStore.wordPracticeType
               )) &&
             !showFullWord &&
@@ -839,7 +839,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
       </div>
 
       <Tooltip
-        :title="settingStore.dictation ? `快捷键 ${settingStore.shortcutKeyMap[ShortcutKey.ShowWord]} 显示单词` : ''"
+        :title="(settingStore.dictation || settingStore.wordPracticeType === WordPracticeType.MeaningRecall) ? `快捷键 ${settingStore.shortcutKeyMap[ShortcutKey.ShowWord]} 显示单词` : ''"
       >
         <div
           id="word"
@@ -875,6 +875,30 @@ const isCollect = $computed(() => isWordCollect(props.word))
             <div
               class="letter text-align-center w-full inline-block"
               v-opacity="!settingStore.dictation || showWordResult || showFullWord"
+            >
+              {{ displayTarget }}
+            </div>
+            <div
+              class="mt-2 w-120 dictation"
+              :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
+              :class="showWordResult ? (right ? 'right' : 'wrong') : ''"
+            >
+              <template v-for="i in input">
+                <span class="l" v-if="i !== ' '">{{ i }}</span>
+                <Space class="l" v-else :is-wrong="showWordResult ? !right : false" :is-wait="!showWordResult" />
+              </template>
+            </div>
+          </div>
+          <div v-else-if="settingStore.wordPracticeType === WordPracticeType.MeaningRecall">
+            <div
+              class="meaning-recall-trans mb-3"
+              :style="{ fontSize: settingStore.fontSize.wordTranslateFontSize + 4 + 'px' }"
+            >
+              <TranslationList :word="word" :showFull="true" />
+            </div>
+            <div
+              class="letter text-align-center w-full inline-block"
+              v-opacity="showWordResult || showFullWord"
             >
               {{ displayTarget }}
             </div>
@@ -995,7 +1019,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
 
       <div
         class="translate flex flex-col gap-2 my-3"
-        v-opacity="settingStore.translate || showWordResult || showFullWord"
+        v-opacity="(settingStore.translate || showWordResult || showFullWord) && settingStore.wordPracticeType !== WordPracticeType.MeaningRecall"
         :style="{
           fontSize: settingStore.fontSize.wordTranslateFontSize + 'px',
         }"
@@ -1007,7 +1031,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
     <div
       class="other anim"
       v-opacity="
-        ![WordPracticeType.Listen, WordPracticeType.Dictation, WordPracticeType.Identify].includes(
+        ![WordPracticeType.Listen, WordPracticeType.Dictation, WordPracticeType.Identify, WordPracticeType.MeaningRecall].includes(
           settingStore.wordPracticeType
         ) ||
         showFullWord ||
