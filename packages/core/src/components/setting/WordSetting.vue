@@ -47,6 +47,13 @@ const settingStore = useSettingStore()
       </RadioGroup>
     </SettingItem>
 
+    <SettingItem :title="$t('japanese_input_mode')">
+      <RadioGroup v-model="settingStore.japanesePracticeInputMode">
+        <Radio value="kanji" size="default">{{ $t('kanji_input') }}</Radio>
+        <Radio value="romaji" size="default">{{ $t('romaji_input') }}</Radio>
+      </RadioGroup>
+    </SettingItem>
+
     <!--          自动切换-->
     <div class="line"></div>
     <SettingItem :mainTitle="$t('auto_switch')" />

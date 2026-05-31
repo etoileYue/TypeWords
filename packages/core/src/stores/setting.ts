@@ -126,7 +126,7 @@ export const getDefaultSettingState = (): SettingState => ({
   mobileNavCollapsed: false,
   ignoreSymbol: true,
   practiceSentence: false,
-  japanesePracticeInputMode: 'kanji',
+  japanesePracticeInputMode: 'romaji',
 
   fsrsEasyLimit: 0,
   fsrsGoodLimit: 3,

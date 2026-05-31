@@ -530,5 +530,8 @@
 	"import_json": "导入json文件",
 	"self_assessment": "自我评估",
 	"word_test": "单词测试",
-	"identify_method": "自测方式"
+	"identify_method": "自测方式",
+	"japanese_input_mode": "Japanese Input Mode",
+	"kanji_input": "Kanji",
+	"romaji_input": "Romaji"
 }

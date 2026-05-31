@@ -207,26 +207,6 @@ function focusJaImeInput() {
   })
 }
 
-function switchJapanesePracticeInputMode(mode: 'kanji' | 'romaji') {
-  if (settingStore.japanesePracticeInputMode === mode) {
-    focusJaImeInput()
-    return
-  }
-  clearJumpTimer()
-  settingStore.japanesePracticeInputMode = mode
-  wrong = input = ''
-  inputLock = false
-  showFullWord = false
-  showWordResult.value = false
-  showAllCandidates = false
-  wordCompletedTime = 0
-  pressNumber = 0
-  isJaComposing = false
-  ignoreNextJaInput = false
-  updateCurrentWordInfo()
-  checkCursorPosition()
-  focusJaImeInput()
-}
 
 function createSyntheticKey(char: string): KeyboardEvent {
   const keyCode = char === ' ' ? 32 : char.toUpperCase().charCodeAt(0)
@@ -955,22 +935,6 @@ const isCollect = $computed(() => isWordCollect(props.word))
         <BaseIcon @click="emit('skip')" :title="`${$t('skip_word')}(${settingStore.shortcutKeyMap[ShortcutKey.Next]})`">
           <IconFluentArrowBounce20Regular class="transform-rotate-180" />
         </BaseIcon>
-        <div class="ja-input-mode" v-if="isJapaneseWord && !isTypingSentence()">
-          <button
-            type="button"
-            :class="{ active: !isJapaneseRomajiInput }"
-            @click="switchJapanesePracticeInputMode('kanji')"
-          >
-            汉字输入
-          </button>
-          <button
-            type="button"
-            :class="{ active: isJapaneseRomajiInput }"
-            @click="switchJapanesePracticeInputMode('romaji')"
-          >
-            罗马音输入
-          </button>
-        </div>
       </div>
 
       <div class="mt-4 flex gap-2" v-if="isSelfAssessment && !showWordResult">
@@ -1251,32 +1215,6 @@ const isCollect = $computed(() => isWordCollect(props.word))
 
   .is-wrong {
     animation: shake 0.82s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  }
-
-  .ja-input-mode {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px;
-    border: 1px solid var(--color-border, #37415155);
-    border-radius: 6px;
-    font-size: 0.75rem;
-    line-height: 1;
-
-    button {
-      padding: 0.35rem 0.5rem;
-      border: 0;
-      border-radius: 4px;
-      background: transparent;
-      color: var(--color-font-1);
-      cursor: pointer;
-      white-space: nowrap;
-
-      &.active {
-        color: var(--color-font-2);
-        background: var(--color-item-bg, rgba(127, 127, 127, 0.12));
-      }
-    }
   }
 
   .input,
