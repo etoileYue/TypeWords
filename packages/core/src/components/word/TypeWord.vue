@@ -850,7 +850,10 @@ const isCollect = $computed(() => isWordCollect(props.word))
           @mouseleave="mouseleave"
         >
           <div v-if="isJapaneseRomajiPractice" class="ja-romaji-practice">
-            <div class="ja-romaji-kanji letter">
+            <div
+              class="ja-romaji-kanji letter"
+              v-opacity="!settingStore.dictation || showWordResult || showFullWord"
+            >
               {{ word.word }}
             </div>
             <div
