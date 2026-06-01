@@ -42,3 +42,4 @@ apps/TypeWordsMiniApp
 
 parsed_output/
 scripts/convert-jlpt-dict.mjs
+fix_list.md
