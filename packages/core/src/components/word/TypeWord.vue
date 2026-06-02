@@ -329,6 +329,7 @@ let displayRomajiAnswer = $computed(() => {
     .map(v => (v === ' ' ? '&nbsp;' : '_'))
     .join('')
 })
+let isJapaneseDictationPractice = $computed(() => settingStore.wordPracticeType === WordPracticeType.Dictation)
 
 let showNotice = false
 
@@ -857,9 +858,8 @@ const isCollect = $computed(() => isWordCollect(props.word))
               {{ word.word }}
             </div>
             <div
-              class="mt-2 w-120 dictation ja-romaji-answer"
+              :class="['mt-2 w-120 dictation', !isJapaneseDictationPractice ? 'ja-romaji-answer' : '', showWordResult ? (right ? 'right' : 'wrong') : '']"
               :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
-              :class="showWordResult ? (right ? 'right' : 'wrong') : ''"
             >
               <template v-if="showRomajiCorrectAnswer">
                 <span class="letter">{{ displayTarget }}</span>
@@ -870,7 +870,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
                   <Space class="l" v-else :is-wrong="showWordResult ? !right : false" :is-wait="!showWordResult" />
                 </template>
                 <span class="wrong l" v-if="wrong">{{ wrong }}</span>
-                <span class="letter ja-romaji-rest">{{ displayRomajiAnswer }}</span>
+                <span v-if="!isJapaneseDictationPractice" class="letter ja-romaji-rest">{{ displayRomajiAnswer }}</span>
               </template>
             </div>
           </div>
