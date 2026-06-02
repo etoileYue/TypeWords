@@ -25,6 +25,20 @@ TypeWords 是一个基于 pnpm workspace 的 TypeScript/Vue monorepo，主要用
 - `apps/nuxt/public/dicts/ja/word/shin-nihongo-shokyu.json`：日语词库数据，体积较大；只在需要调整词条、读音、音频或例句数据时修改。
 - `packages/core/package.json`：`wanakana` 依赖声明，支撑罗马音转换。
 
+## 听写/默写概念区分
+
+项目中"听写"和"默写"有三层含义，交流时请注意区分：
+
+| 概念 | 代码对应 | 说明 |
+|-----|---------|------|
+| **默写开关** | `settingStore.dictation` (boolean) | 视觉隐藏开关，Ctrl+I 切换，不影响输入逻辑 |
+| **默写/听写阶段** | `WordPracticeType.Dictation` / `Listen` | System/Review 流程中的阶段，改变输入交互方式 |
+| **独立默写/听写** | `WordPracticeMode.DictationOnly` / `ListenOnly` | 完整的独立练习模式 |
+
+- **默写开关**：纯视觉隐藏（隐藏单词、音标），任何模式下都能开启
+- **默写阶段**：按空格键后才比对正确性；听写阶段则是逐字母即时比对
+- **独立模式**：只包含对应类型的完整练习流程
+
 ## 常用命令
 
 优先使用 pnpm：
