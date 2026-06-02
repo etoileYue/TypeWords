@@ -858,6 +858,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
               {{ word.word }}
             </div>
             <div
+              v-if="!isSelfAssessment || showWordResult"
               :class="['mt-2 w-120 dictation', !isJapaneseDictationPractice ? 'ja-romaji-answer' : '', showWordResult ? (right ? 'right' : 'wrong') : '']"
               :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
             >
@@ -882,6 +883,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
               {{ displayTarget }}
             </div>
             <div
+              v-if="!isSelfAssessment || showWordResult"
               class="mt-2 w-120 dictation"
               :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
               :class="showWordResult ? (right ? 'right' : 'wrong') : ''"
@@ -1136,6 +1138,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
       </div>
     </div>
     <div
+      v-if="!isSelfAssessment || showWordResult"
       class="cursor"
       :style="{
         top: cursor.top + 'px',
