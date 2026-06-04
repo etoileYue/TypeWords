@@ -1211,8 +1211,8 @@ const isCollect = $computed(() => isWordCollect(props.word))
     max-width: 80vw;
     line-height: 1.15;
     text-align: center;
-    white-space: pre;
-    overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: keep-all;
   }
 
   .ja-romaji-rest {
