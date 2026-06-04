@@ -352,6 +352,12 @@ export async function _getDictDataByUrl(val: DictResource, type: DictType = Dict
   let s = await fetch(requestUrl).then(r => r.json())
   if (s) {
     if (type === DictType.word) {
+      if (val.language === 'ja' && Array.isArray(s)) {
+        s = s.filter((w: any) => {
+          const wd: string = w?.word ?? ''
+          return !wd.includes('～') && !wd.includes(' ')
+        })
+      }
       return getDefaultDict({ ...val, words: s })
     } else {
       return getDefaultDict({ ...val, articles: s })
