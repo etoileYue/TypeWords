@@ -880,7 +880,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
               class="letter text-align-center w-full inline-block"
               v-opacity="!settingStore.dictation || showWordResult || showFullWord"
             >
-              {{ displayTarget }}
+              {{ word.word }}
             </div>
             <div
               v-if="!isSelfAssessment || showWordResult"

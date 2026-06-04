@@ -5,6 +5,11 @@ export type JapanesePracticeInputMode = 'kanji' | 'romaji'
 
 const hasKana = /[ぁ-んァ-ヶー]/
 
+const TILDE_REGEX = /～/g
+function stripTilde(str: string): string {
+  return str.replace(TILDE_REGEX, '')
+}
+
 // 长音占位符，用于在 toRomaji 转换过程中保留长音标记
 const CHOUON_PLACEHOLDER = 'xCHOUONx'
 
@@ -15,12 +20,12 @@ function toRomajiWithChouon(str: string): string {
 
 export function getJapanesePracticeTarget(word: Word, mode: JapanesePracticeInputMode, isJapaneseWord: boolean) {
   if (!isJapaneseWord || mode !== 'romaji') {
-    return word.word
+    return stripTilde(word.word)
   }
-  const reading = word.reading?.split(/\s*\/\s*/).find(Boolean)
+  const reading = stripTilde(word.reading ?? '').split(/\s*\/\s*/).find(Boolean)
   // 当 reading 不含假名时（如外来语的英文原词 "Johnson"），用假名本体转罗马音
   if (reading && hasKana.test(reading)) {
     return toRomajiWithChouon(reading)
   }
-  return toRomajiWithChouon(word.word)
+  return toRomajiWithChouon(stripTilde(word.word))
 }
