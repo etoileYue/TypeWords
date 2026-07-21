@@ -97,6 +97,8 @@ const volumeIconRef: any = $ref()
 const sentenceVolumeIconsRefs: any = $ref([])
 const typingWordRef = $ref<HTMLDivElement>()
 let jaImeInputRef = $ref<HTMLInputElement>()
+let jaImePreview = $ref('')
+let jaImeInputWidth = $computed(() => `${Math.max(jaImePreview.length, 1)}em`)
 // const volumeTranslateIconRef: any = $ref()
 
 let showAllCandidates = $ref(false)
@@ -128,6 +130,10 @@ let isJapaneseRomajiInput = $computed(
 )
 let isJapaneseRomajiPractice = $computed(() => isJapaneseRomajiInput && !isTypingSentence())
 let isJapaneseImeInput = $computed(() => isJapaneseWord && settingStore.japanesePracticeInputMode !== 'romaji')
+// 汉字模式以整词提交：保留自测和选择题各自的非键入交互。
+let isJapaneseKanjiAnswerInput = $computed(
+  () => isJapaneseImeInput && !isTypingSentence() && settingStore.wordPracticeType !== WordPracticeType.Identify
+)
 let practiceTarget = $computed(() => {
   if (isTypingSentence()) {
     return props.word.sentences[currentPracticeSentenceIndex].c
@@ -150,6 +156,23 @@ function updateCurrentWordInfo() {
 
 watch(() => props.word, reset, { deep: true })
 
+watch(
+  () => settingStore.japanesePracticeInputMode,
+  () => {
+    if (!isJapaneseWord || isTypingSentence()) return
+    clearJumpTimer()
+    wrong = input = ''
+    inputLock = false
+    showWordResult.value = false
+    wordCompletedTime = 0
+    jaImePreview = ''
+    if (jaImeInputRef) jaImeInputRef.value = ''
+    updateCurrentWordInfo()
+    checkCursorPosition()
+    focusJaImeInput()
+  }
+)
+
 function reset() {
   clearJumpTimer()
   wrong = input = ''
@@ -158,6 +181,8 @@ function reset() {
   currentPracticeSentenceIndex = -1
   wordCompletedTime = 0 // 重置时间戳
   wrongTimes.value = 0
+  jaImePreview = ''
+  if (jaImeInputRef) jaImeInputRef.value = ''
   if (settingStore.wordSound) {
     if (!settingStore.dictation || settingStore.wordPracticeType === WordPracticeType.Listen) {
       volumeIconRef?.play(400, true)
@@ -239,6 +264,7 @@ let ignoreNextJaInput = false
 function onJaCompositionStart() {
   isJaComposing = true
   ignoreNextJaInput = false
+  jaImePreview = ''
 }
 
 function onJaCompositionEnd(e: CompositionEvent) {
@@ -246,6 +272,7 @@ function onJaCompositionEnd(e: CompositionEvent) {
   const target = e.target as HTMLInputElement
   const text = e.data || target.value
   target.value = ''
+  jaImePreview = ''
   if (text) {
     ignoreNextJaInput = true
     window.setTimeout(() => (ignoreNextJaInput = false), 0)
@@ -254,15 +281,20 @@ function onJaCompositionEnd(e: CompositionEvent) {
 }
 
 function onJaInput(e: InputEvent) {
-  if (isJaComposing) return
   const target = e.target as HTMLInputElement
+  if (isJaComposing) {
+    jaImePreview = target.value
+    return
+  }
   if (ignoreNextJaInput) {
     ignoreNextJaInput = false
     target.value = ''
+    jaImePreview = ''
     return
   }
   const text = e.data || target.value
   target.value = ''
+  jaImePreview = ''
   if (text) typeJaText(text)
 }
 
@@ -278,7 +310,7 @@ function onJaKeydown(e: KeyboardEvent) {
     del()
     return
   }
-  if (e.code === 'Space' && !isJaComposing && !jaImeInputRef?.value) {
+  if (e.code === 'Space') {
     e.preventDefault()
     e.stopPropagation()
     onTyping(e)
@@ -307,7 +339,7 @@ const right = $computed(() => {
     b = practiceTarget
   }
 
-  if (settingStore.wordPracticeType === WordPracticeType.Dictation) {
+  if (settingStore.wordPracticeType === WordPracticeType.Dictation || isJapaneseKanjiAnswerInput) {
     a = normalizeWord(a)
     b = normalizeWord(b)
   }
@@ -464,11 +496,14 @@ async function onTyping(e: KeyboardEvent) {
   let letter = e.key
   // console.log('letter',letter)
   //默写特殊逻辑
-  if (settingStore.wordPracticeType === WordPracticeType.Dictation) {
+  if (settingStore.wordPracticeType === WordPracticeType.Dictation || isJapaneseKanjiAnswerInput) {
     if (e.code === 'Space') {
+      const shouldSubmit = isJapaneseKanjiAnswerInput
+        ? input.length > 0
+        : input.length && (input.length >= target.length || !target.includes(' '))
       //如果输入长度大于单词长度/单词不包含空格，并且输入不为空（开始直接输入空格不行），则显示单词；
       // 这里inputLock 不设为 false，不能再输入了，只能删除（删除会重置 inputLock）或按空格切下一格
-      if (input.length && (input.length >= target.length || !target.includes(' '))) {
+      if (shouldSubmit) {
         //比对是否一致
         if (right) {
           //如果已显示单词，则发射完成事件，并 return
@@ -486,6 +521,11 @@ async function onTyping(e: KeyboardEvent) {
           typo()
         }
         showWordResult.value = true
+        return
+      }
+      // 日语汉字模式中的空格始终是提交键，空答案不写入待输入内容。
+      if (isJapaneseKanjiAnswerInput) {
+        inputLock = false
         return
       }
     }
@@ -786,9 +826,9 @@ const isCollect = $computed(() => isWordCollect(props.word))
 <template>
   <div class="typing-word" ref="typingWordRef" v-if="word.word.length" @click="focusJaImeInput">
     <input
-      v-if="isJapaneseImeInput"
+      v-if="isJapaneseImeInput && !isJapaneseKanjiAnswerInput"
       ref="jaImeInputRef"
-      class="ja-ime-input"
+      class="ja-ime-input ja-ime-input-hidden"
       autocomplete="off"
       autocapitalize="off"
       autocorrect="off"
@@ -847,10 +887,38 @@ const isCollect = $computed(() => isWordCollect(props.word))
           class="word my-1"
           :class="wrong && !isTypingSentence() ? 'is-wrong' : ''"
           :style="{ fontSize: settingStore.fontSize.wordForeignFontSize + 'px' }"
-          @mouseenter="showWord"
+          @mouseenter="!isJapaneseKanjiAnswerInput && showWord()"
           @mouseleave="mouseleave"
         >
-          <div v-if="isJapaneseRomajiPractice" class="ja-romaji-practice">
+          <div v-if="isJapaneseKanjiAnswerInput" class="ja-kanji-practice">
+            <div class="ja-kanji-word letter">
+              {{ word.word }}
+            </div>
+            <div
+              class="mt-2 w-120 dictation ja-kanji-answer"
+              :style="{ minHeight: settingStore.fontSize.wordForeignFontSize + 'px' }"
+              :class="showWordResult ? (right ? 'right' : 'wrong') : ''"
+            >
+              <template v-for="i in input">
+                <span class="l" v-if="i !== ' '">{{ i }}</span>
+                <Space class="l" v-else :is-wrong="showWordResult ? !right : false" :is-wait="!showWordResult" />
+              </template>
+              <input
+                ref="jaImeInputRef"
+                class="ja-ime-input ja-ime-input-inline"
+                :style="{ width: jaImeInputWidth }"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                spellcheck="false"
+                @compositionstart="onJaCompositionStart"
+                @compositionend="onJaCompositionEnd"
+                @input="onJaInput"
+                @keydown="onJaKeydown"
+              />
+            </div>
+          </div>
+          <div v-else-if="isJapaneseRomajiPractice" class="ja-romaji-practice">
             <div
               class="ja-romaji-kanji letter"
               v-opacity="!settingStore.dictation || showWordResult || showFullWord"
@@ -1138,7 +1206,7 @@ const isCollect = $computed(() => isWordCollect(props.word))
       </div>
     </div>
     <div
-      v-if="!isSelfAssessment || showWordResult"
+      v-if="(!isSelfAssessment || showWordResult) && !isJapaneseKanjiAnswerInput"
       class="cursor"
       :style="{
         top: cursor.top + 'px',
@@ -1163,6 +1231,20 @@ const isCollect = $computed(() => isWordCollect(props.word))
   color: var(--color-font-2);
 
   .ja-ime-input {
+    box-sizing: content-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    line-height: inherit;
+    text-align: left;
+  }
+
+  .ja-ime-input-hidden {
     position: fixed;
     left: -9999px;
     top: 0;
@@ -1170,6 +1252,11 @@ const isCollect = $computed(() => isWordCollect(props.word))
     height: 1px;
     opacity: 0;
     pointer-events: none;
+  }
+
+  .ja-ime-input-inline {
+    min-width: 1em;
+    vertical-align: baseline;
   }
 
   .phonetic,
@@ -1194,6 +1281,21 @@ const isCollect = $computed(() => isWordCollect(props.word))
     flex-direction: column;
     align-items: center;
     min-width: min(30rem, 80vw);
+  }
+
+  .ja-kanji-practice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: min(30rem, 80vw);
+  }
+
+  .ja-kanji-word,
+  .ja-kanji-answer {
+    width: 100%;
+    text-align: center;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
   }
 
   .ja-romaji-kanji {
