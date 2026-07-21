@@ -234,10 +234,13 @@ function focusJaImeInput() {
 
 
 function createSyntheticKey(char: string): KeyboardEvent {
-  const keyCode = char === ' ' ? 32 : char.toUpperCase().charCodeAt(0)
+  // 日语 IME 可能将提交用的空格作为全角空格（U+3000）写入 input 事件。
+  // 将两种空格统一为 Space，交给词汇提交逻辑处理。
+  const isSpace = char === ' ' || char === '　'
+  const keyCode = isSpace ? 32 : char.toUpperCase().charCodeAt(0)
   return {
-    key: char,
-    code: char === ' ' ? 'Space' : '',
+    key: isSpace ? ' ' : char,
+    code: isSpace ? 'Space' : '',
     keyCode,
     which: keyCode,
     ctrlKey: false,
